@@ -20,6 +20,104 @@ export const CAREERS: Career[] = [
     available: true,
   },
   {
+    slug: "frontend-developer",
+    title: "Frontend Developer",
+    area: "Technology · Web",
+    blurb:
+      "Build interfaces that are clear, fast and a pleasure to use across devices.",
+    description:
+      "Frontend developers turn designs and product thinking into interactive experiences using HTML, CSS and JavaScript frameworks.",
+    durationMin: 18,
+    difficulty: "Intermediate",
+    skills: ["UI implementation", "User experience", "Performance", "Debugging"],
+    accent: "teal",
+    available: false,
+  },
+  {
+    slug: "backend-developer",
+    title: "Backend Developer",
+    area: "Technology · Systems",
+    blurb:
+      "Design reliable APIs, services and data flows that power products behind the scenes.",
+    description:
+      "Backend developers build the systems that store data, enforce rules and deliver logic to user-facing experiences.",
+    durationMin: 20,
+    difficulty: "Intermediate",
+    skills: ["API design", "Data modelling", "Reliability", "Security"],
+    accent: "brand",
+    available: false,
+  },
+  {
+    slug: "full-stack-developer",
+    title: "Full Stack Developer",
+    area: "Technology · Product",
+    blurb:
+      "Ship end-to-end product features from interface to server and database.",
+    description:
+      "Full stack developers connect user experience and infrastructure so the whole product works as one system.",
+    durationMin: 22,
+    difficulty: "Advanced",
+    skills: ["Systems thinking", "API integration", "Product delivery", "Debugging"],
+    accent: "amber",
+    available: false,
+  },
+  {
+    slug: "android-developer",
+    title: "Android Developer",
+    area: "Technology · Mobile",
+    blurb:
+      "Create mobile product experiences that feel native, responsive and trustworthy.",
+    description:
+      "Android developers build and maintain apps for the Android ecosystem, balancing user needs, operating system constraints and device diversity.",
+    durationMin: 18,
+    difficulty: "Intermediate",
+    skills: ["Mobile UI", "Android patterns", "Performance", "Testing"],
+    accent: "accent",
+    available: false,
+  },
+  {
+    slug: "ios-developer",
+    title: "iOS Developer",
+    area: "Technology · Mobile",
+    blurb:
+      "Craft polished experiences for Apple's ecosystem with strong product thinking.",
+    description:
+      "iOS developers design and ship mobile features for iPhone and iPad users with a focus on usability, platform conventions and quality.",
+    durationMin: 18,
+    difficulty: "Intermediate",
+    skills: ["Swift", "Human interfaces", "App architecture", "Accessibility"],
+    accent: "teal",
+    available: false,
+  },
+  {
+    slug: "devops-engineer",
+    title: "DevOps Engineer",
+    area: "Technology · Operations",
+    blurb:
+      "Keep services reliable, deployable and observable as teams grow.",
+    description:
+      "DevOps engineers connect software delivery, infrastructure and reliability so changes reach users safely and efficiently.",
+    durationMin: 20,
+    difficulty: "Advanced",
+    skills: ["CI/CD", "Automation", "Monitoring", "Infrastructure"],
+    accent: "brand",
+    available: false,
+  },
+  {
+    slug: "devsecops-engineer",
+    title: "DevSecOps Engineer",
+    area: "Technology · Security",
+    blurb:
+      "Make security part of the delivery pipeline rather than a final bottleneck.",
+    description:
+      "DevSecOps engineers help teams ship quickly without ignoring vulnerabilities, secrets, hardened configurations or compliance needs.",
+    durationMin: 20,
+    difficulty: "Advanced",
+    skills: ["Security automation", "Threat awareness", "Compliance", "Risk management"],
+    accent: "amber",
+    available: false,
+  },
+  {
     slug: "data-analyst",
     title: "Data Analyst",
     area: "Technology · Data",
@@ -31,6 +129,62 @@ export const CAREERS: Career[] = [
     difficulty: "Intermediate",
     skills: ["Data reasoning", "Hypothesis testing", "Visualisation", "Communication"],
     accent: "teal",
+    available: false,
+  },
+  {
+    slug: "data-scientist",
+    title: "Data Scientist",
+    area: "Technology · Data",
+    blurb:
+      "Use statistical thinking and machine learning to answer high-value business questions.",
+    description:
+      "Data scientists build models, test hypotheses and help teams understand what patterns are actually important and reliable.",
+    durationMin: 22,
+    difficulty: "Advanced",
+    skills: ["Statistics", "Machine learning", "Experimentation", "Communication"],
+    accent: "amber",
+    available: false,
+  },
+  {
+    slug: "data-engineer",
+    title: "Data Engineer",
+    area: "Technology · Data",
+    blurb:
+      "Build the pipelines, storage and trust layer that make analytics and AI possible.",
+    description:
+      "Data engineers turn messy raw sources into structured, dependable data products that downstream teams can rely on.",
+    durationMin: 20,
+    difficulty: "Advanced",
+    skills: ["Data pipelines", "ETL", "Warehousing", "Reliability"],
+    accent: "brand",
+    available: false,
+  },
+  {
+    slug: "machine-learning-engineer",
+    title: "Machine Learning Engineer",
+    area: "Technology · AI",
+    blurb:
+      "Take models from prototype to production with a sensible engineering workflow.",
+    description:
+      "Machine learning engineers bring together data, modeling, experimentation and product constraints to make AI useful in real systems.",
+    durationMin: 24,
+    difficulty: "Advanced",
+    skills: ["Model evaluation", "ML systems", "Experimentation", "Deployment"],
+    accent: "amber",
+    available: false,
+  },
+  {
+    slug: "ai-engineer",
+    title: "AI Engineer",
+    area: "Technology · AI",
+    blurb:
+      "Design prompts, workflows and tool integrations that make AI useful for real users.",
+    description:
+      "AI engineers turn emerging model capabilities into practical experiences, testing quality, safeguards and business value.",
+    durationMin: 18,
+    difficulty: "Intermediate",
+    skills: ["Prompt design", "Evaluation", "AI workflows", "Product thinking"],
+    accent: "accent",
     available: false,
   },
   {
@@ -48,17 +202,101 @@ export const CAREERS: Career[] = [
     available: false,
   },
   {
-    slug: "software-engineer",
-    title: "Software Engineer",
+    slug: "product-designer",
+    title: "Product Designer",
+    area: "Design · Product",
+    blurb:
+      "Balance customer needs, business outcomes and the realities of shipping.",
+    description:
+      "Product designers work across research, interaction design and visual decisions to make better product experiences more likely.",
+    durationMin: 20,
+    difficulty: "Intermediate",
+    skills: ["Design systems", "Research", "Interaction design", "Mockups"],
+    accent: "teal",
+    available: false,
+  },
+  {
+    slug: "qa-engineer",
+    title: "QA Engineer",
+    area: "Technology · Quality",
+    blurb:
+      "Find the gaps between intent and reality before users do.",
+    description:
+      "QA engineers check whether systems behave as expected under real-world conditions and give teams clear, useful feedback.",
+    durationMin: 16,
+    difficulty: "Intermediate",
+    skills: ["Test strategy", "Bug analysis", "Quality thinking", "Automation"],
+    accent: "brand",
+    available: false,
+  },
+  {
+    slug: "software-architect",
+    title: "Software Architect",
     area: "Technology · Engineering",
     blurb:
-      "Scope a feature, weigh trade-offs and defend a technical recommendation.",
+      "Shape the big decisions that keep a system flexible, secure and maintainable.",
     description:
-      "Engineers turn fuzzy requirements into working systems while balancing speed, risk and quality.",
+      "Architects think beyond one feature and design the structure, trade-offs and standards that guide multiple teams over time.",
     durationMin: 22,
     difficulty: "Advanced",
-    skills: ["Systems thinking", "Trade-off analysis", "Risk awareness", "Explanation"],
+    skills: ["System design", "Trade-offs", "Standards", "Technical leadership"],
     accent: "amber",
+    available: false,
+  },
+  {
+    slug: "cybersecurity-engineer",
+    title: "Cyber Security Engineer",
+    area: "Technology · Security",
+    blurb:
+      "Protect systems, data and user trust before problems become incidents.",
+    description:
+      "Cyber security professionals design controls, detect risk and help teams reduce attack surface with practical security decisions.",
+    durationMin: 20,
+    difficulty: "Advanced",
+    skills: ["Threat modeling", "Security controls", "Monitoring", "Risk reduction"],
+    accent: "accent",
+    available: false,
+  },
+  {
+    slug: "technical-writer",
+    title: "Technical Writer",
+    area: "Business · Documentation",
+    blurb:
+      "Turn complex systems into clear guidance that people can actually use.",
+    description:
+      "Technical writers turn product knowledge into documentation that helps users and teams move faster with less confusion.",
+    durationMin: 15,
+    difficulty: "Beginner",
+    skills: ["Clarity", "Structure", "Research", "Communication"],
+    accent: "teal",
+    available: false,
+  },
+  {
+    slug: "game-developer",
+    title: "Game Developer",
+    area: "Technology · Creative",
+    blurb:
+      "Build interactive experiences where systems, art and gameplay all work together.",
+    description:
+      "Game developers balance mechanics, performance, tools and user delight to create engaging interactive worlds.",
+    durationMin: 22,
+    difficulty: "Advanced",
+    skills: ["Game systems", "Performance", "Iteration", "Creativity"],
+    accent: "amber",
+    available: false,
+  },
+  {
+    slug: "blockchain-developer",
+    title: "Blockchain Developer",
+    area: "Technology · Web3",
+    blurb:
+      "Design secure, transparent systems around decentralised trust and ownership.",
+    description:
+      "Blockchain developers build smart contracts, protocols and product experiences that depend on distributed systems and clear incentives.",
+    durationMin: 22,
+    difficulty: "Advanced",
+    skills: ["Protocols", "Security", "Distributed systems", "Smart contracts"],
+    accent: "brand",
     available: false,
   },
   {
@@ -73,6 +311,34 @@ export const CAREERS: Career[] = [
     difficulty: "Intermediate",
     skills: ["Structured thinking", "Prioritisation", "Process analysis", "Communication"],
     accent: "brand",
+    available: false,
+  },
+  {
+    slug: "seo-specialist",
+    title: "SEO Specialist",
+    area: "Business · Growth",
+    blurb:
+      "Improve how products and content are discovered through search and demand generation.",
+    description:
+      "SEO specialists connect product insights, content strategy and technical optimisation to improve visibility and quality of traffic.",
+    durationMin: 16,
+    difficulty: "Intermediate",
+    skills: ["Content strategy", "Technical SEO", "Analysis", "Testing"],
+    accent: "teal",
+    available: false,
+  },
+  {
+    slug: "software-engineer",
+    title: "Software Engineer",
+    area: "Technology · Engineering",
+    blurb:
+      "Scope a feature, weigh trade-offs and defend a technical recommendation.",
+    description:
+      "Engineers turn fuzzy requirements into working systems while balancing speed, risk and quality.",
+    durationMin: 22,
+    difficulty: "Advanced",
+    skills: ["Systems thinking", "Trade-off analysis", "Risk awareness", "Explanation"],
+    accent: "amber",
     available: false,
   },
 ];

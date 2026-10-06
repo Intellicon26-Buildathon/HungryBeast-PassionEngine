@@ -9,18 +9,19 @@ you actually did.
 
 > **IntelliCon'26 — Gate 2 prototype.** This is a working vertical slice, not the
 > finished platform. The **Product Manager** simulation is fully playable
-> end-to-end; the other careers are concept cards for the catalogue.
+> end-to-end; the other careers are concept cards marked “Soon” in the catalogue.
 
 ---
 
-## ✨ What works right now (the Gate 2 vertical slice)
+##  What works right now (the Gate 2 vertical slice)
 
 Landing → Career catalogue → Career detail → **Virtual Workplace** → AI manager
 interaction → Simulation completion → **Evidence-based evaluation** → **Dashboard
 (persists across refresh).**
 
 - **Landing page** — value proposition + live workplace preview.
-- **Career catalogue** — 5 careers with filters (Product Manager is live).
+- **Career catalogue** — 24 role cards across technology, design, and business,
+  with area filters. Product Manager is live; the other roles are marked “Soon.”
 - **Career detail** — role, mission, manager, task sequence.
 - **Simulation prep** — mission briefing before entering.
 - **Virtual Workplace** — the hero screen. Looks like a work tool, not a chatbot:
@@ -39,7 +40,7 @@ error states throughout.
 
 ---
 
-## 🧠 The "AI" today: a built-in mock (zero keys needed)
+##  The "AI" today: a built-in mock (zero keys needed)
 
 So the whole flow is demonstrable **with no API keys and no database**, the two
 bounded AI agents from the plan are implemented as deterministic, client-side
@@ -56,7 +57,7 @@ Gemini + Supabase later is a drop-in with **no UI changes** (see below).
 
 ---
 
-## 🚀 Run it locally
+## Run it locally
 
 **Requirements:** Node.js 18.17+ (LTS recommended).
 
@@ -64,6 +65,10 @@ Gemini + Supabase later is a drop-in with **no UI changes** (see below).
 npm install
 npm run dev        # http://localhost:3000
 ```
+
+In VS Code, open this project folder, open **Terminal → New Terminal**, and run
+the commands above. Then open the URL printed by Next.js; if port 3000 is busy,
+Next.js will choose another available port.
 
 Build / production:
 
@@ -88,7 +93,7 @@ Chosen to match the plan's stack so Supabase + Gemini slot in cleanly.
 
 ---
 
-## 📁 Project structure
+##  Project structure
 
 ```
 app/
@@ -108,7 +113,7 @@ lib/
 
 ---
 
-## 🔌 Wiring in real Gemini + Supabase (next step)
+## Wiring in real Gemini + Supabase (next step)
 
 The code is structured so this is additive, not a rewrite:
 
@@ -125,7 +130,7 @@ The code is structured so this is additive, not a rewrite:
 
 ---
 
-## ⚠️ Responsible-AI stance (built into the product)
+##  Responsible-AI stance (built into the product)
 
 - Feedback is **evidence-based** and tied to a human-written rubric — never a
   permanent judgement ("in this simulation you demonstrated…", not "you are/aren't
@@ -137,7 +142,7 @@ The code is structured so this is additive, not a rewrite:
 
 ---
 
-## 📝 Known limitations (Gate 2)
+##  Known limitations (Gate 2)
 
 - AI responses are a deterministic mock until Gemini is wired in.
 - Persistence is browser-local (per device) until Supabase is wired in.
