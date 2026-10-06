@@ -9,7 +9,7 @@ you actually did.
 
 > **IntelliCon'26 — Gate 2 prototype.** This is a working vertical slice, not the
 > finished platform. The **Product Manager** simulation is fully playable
-> end-to-end; the other careers are concept cards for the catalogue.
+> end-to-end; the other careers are concept cards marked “Soon” in the catalogue.
 
 ---
 
@@ -20,7 +20,8 @@ interaction → Simulation completion → **Evidence-based evaluation** → **Da
 (persists across refresh).**
 
 - **Landing page** — value proposition + live workplace preview.
-- **Career catalogue** — 5 careers with filters (Product Manager is live).
+- **Career catalogue** — 24 role cards across technology, design, and business,
+  with area filters. Product Manager is live; the other roles are marked “Soon.”
 - **Career detail** — role, mission, manager, task sequence.
 - **Simulation prep** — mission briefing before entering.
 - **Virtual Workplace** — the hero screen. Looks like a work tool, not a chatbot:
@@ -64,6 +65,10 @@ Gemini + Supabase later is a drop-in with **no UI changes** (see below).
 npm install
 npm run dev        # http://localhost:3000
 ```
+
+In VS Code, open this project folder, open **Terminal → New Terminal**, and run
+the commands above. Then open the URL printed by Next.js; if port 3000 is busy,
+Next.js will choose another available port.
 
 Build / production:
 
