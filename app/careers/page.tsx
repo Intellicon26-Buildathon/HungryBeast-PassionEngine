@@ -43,10 +43,10 @@ export default function CareersPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 ${
                   filter === f
                     ? "bg-ink text-white"
-                    : "border border-line bg-surface text-ink-muted hover:border-ink/20"
+                    : "border border-line bg-surface text-ink-muted hover:border-sky-300 hover:bg-sky-50 hover:shadow-[0_0_0_3px_rgba(125,211,252,0.28),0_0_18px_rgba(125,211,252,0.24)]"
                 }`}
               >
                 {f}
