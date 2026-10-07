@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { AuthLayout } from "@/components/AuthLayout";
+
 export const metadata: Metadata = {
   title: "The Passion Discovery Engine — Experience the work. Discover yourself.",
   description:
@@ -22,7 +24,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthLayout>{children}</AuthLayout>
+      </body>
     </html>
   );
 }

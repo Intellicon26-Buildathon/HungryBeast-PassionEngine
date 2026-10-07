@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "e6cf4712-7d61-453b-88bb-1c0b336e1321",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\.archify\\workflow-simulation-runtime-20261006-1900\\candidate.json",
+  "output": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\docs\\architecture\\simulation-runtime-workflow.html",
+  "specification": {
+    "sha256": "ce565b048e87c894be518f5ebc7b0b927fafc6af72f6e959db92d2237ab0e64f",
+    "bytes": 4324
+  },
+  "artifact": {
+    "sha256": "83478f17e31d721c72638c143f68ddeb9b4244cca7450004383aa4605cd6cf34",
+    "bytes": 761756
+  }
+}

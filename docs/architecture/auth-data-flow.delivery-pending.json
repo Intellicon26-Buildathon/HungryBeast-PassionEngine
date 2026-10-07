@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "7e732ccf-d45a-4a3e-a858-e8f1f7a86ce1",
+  "input": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\.archify\\dataflow-auth-data-flow-20261006-1930\\candidate.json",
+  "output": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\docs\\architecture\\auth-data-flow.html"
+}

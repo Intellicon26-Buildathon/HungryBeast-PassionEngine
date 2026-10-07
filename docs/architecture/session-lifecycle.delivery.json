@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "5a18f0f6-f3d1-4a29-8fc3-8daa748bc018",
+  "status": "current",
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\.archify\\lifecycle-session-lifecycle-20261006-1920\\candidate.json",
+  "output": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\docs\\architecture\\session-lifecycle.html",
+  "specification": {
+    "sha256": "b3b5a4226c5ca602e61a3b0b0976e0858941539df0f2fde8bc84d9e1518f9fa2",
+    "bytes": 3499
+  },
+  "artifact": {
+    "sha256": "d2ed833e2423c9f4993cd5650f7d5a195ed24f99b713c696a38d78ff5caf19d4",
+    "bytes": 763149
+  }
+}
