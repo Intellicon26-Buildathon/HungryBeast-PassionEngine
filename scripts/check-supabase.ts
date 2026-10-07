@@ -11,7 +11,9 @@
  *
  * Exits non-zero on any failure so CI can gate on it.
  */
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 const log = (icon: string, msg: string) => console.log(`${icon}  ${msg}`);
 const fail = (msg: string): never => {
