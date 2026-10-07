@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "6caa5249-337a-4571-8171-5a55b2349755",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\.archify\\architecture-system-architecture-20261006-1830\\candidate.json",
+  "output": "C:\\Users\\LENOVO\\Downloads\\HungryBeast-PassionEngine-main\\docs\\architecture\\system-architecture.html",
+  "specification": {
+    "sha256": "17a23ef410eb26fde71b2ece6d3bf3c5ae70fbe2414a9620cf15b287153f7f22",
+    "bytes": 4750
+  },
+  "artifact": {
+    "sha256": "149cf171afaeea054804d4ca059a06cd1fc9f257d3195c3a80fdeb49034c5915",
+    "bytes": 768227
+  }
+}

@@ -82,6 +82,40 @@ real backend will use.
 
 ---
 
+## 🚀 Deploying to Vercel
+
+The application is pre-configured for seamless zero-config deployment to **Vercel**:
+
+### 1. Push & Import
+1. Push your repository to GitHub.
+2. In the [Vercel Dashboard](https://vercel.com/dashboard), click **Add New...** → **Project** and select this repository.
+3. Framework preset will automatically be detected as **Next.js**.
+
+### 2. Environment Variables (Optional for Prototype Mode)
+The project runs fully out of the box in **Prototype Mode** with built-in deterministic AI and browser persistence without requiring any environment variables.
+
+When you are ready to enable production backends, configure the following variables in **Vercel Project Settings → Environment Variables**:
+
+| Variable | Description | Required |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Optional (for real Auth/DB) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous public key | Optional (for real Auth/DB) |
+| `SUPABASE_URL` | Supabase server URL | Optional |
+| `SUPABASE_ANON_KEY` | Supabase server anon key | Optional |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) | Optional |
+| `GEMINI_API_KEY` | Google Gemini API key for live AI roleplay | Optional (falls back to mock AI) |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL for rate limiting | Optional |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token | Optional |
+| `APP_ORIGIN` | Deployment origin URL (auto-detected via `VERCEL_URL` if omitted) | Optional |
+
+> **Note:** Vercel deployment URLs (`*.vercel.app`) are automatically detected for auth callbacks and origins via Vercel system environment variables (`VERCEL_URL` / `VERCEL_PROJECT_PRODUCTION_URL`).
+
+### 3. Vercel Configuration Highlights
+- **`vercel.json`**: Pre-configured with Next.js framework settings and `maxDuration: 30` on AI routes to accommodate generative AI completions without edge timeout.
+- **Dynamic Handlers**: Dynamic routes explicitly configured with `export const dynamic = 'force-dynamic'` to prevent static pre-rendering pitfalls.
+
+---
+
 ## 🛠 Tech stack
 
 - **Next.js 14** (App Router) + **React 18** + **TypeScript**
