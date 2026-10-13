@@ -42,7 +42,7 @@ export default function Home() {
                 </Link>
               </div>
               <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-muted">
-                <Stat value="5" label="career paths" />
+                <Stat value="24" label="career paths" />
                 <Divider />
                 <Stat value="~15 min" label="per simulation" />
                 <Divider />
