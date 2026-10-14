@@ -57,12 +57,13 @@ locally:
 
 1. Copy `.env.example` to `.env.local`.
 2. Set `GEMINI_API_KEY` to a key from Google AI Studio.
-3. Keep `AI_MODEL=gemini-2.5-flash`, unless you have verified another model.
+3. Keep `AI_MODEL=gemini-3.8-flash`, unless you have verified another model.
 4. Restart `npm run dev`; the workplace should report **Gemini configured**.
 
 The key stays server-side. The local-only `/api/ai/demo` route is disabled
-outside development. If a configured key or model fails, the app reports the
-provider error instead of disguising it as a successful Gemini reply.
+outside development. If the configured model is unavailable, the gateway retries with
+`gemini-3.8-flash`; other provider failures are reported rather than disguised
+as successful Gemini replies.
 
 | Plan concept        | Prototype stand-in                                   |
 | ------------------- | ---------------------------------------------------- |
@@ -126,15 +127,15 @@ When you are ready to enable production backends, configure the following variab
 | `SUPABASE_URL` | Supabase project URL for privileged server tasks | Only for those tasks |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-only; never expose publicly) | Only for privileged tasks |
 | `GEMINI_API_KEY` | Google Gemini key for live manager replies | Required for live AI |
-| `AI_MODEL` | Full Gemini model ID; use `gemini-2.5-flash` | Recommended |
+| `AI_MODEL` | Full Gemini model ID; use `gemini-3.8-flash` | Recommended |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL for distributed AI rate limiting | Required for production AI |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token | Required for production AI |
 | `APP_ORIGIN` | Public deployment origin (auto-detected on Vercel if omitted) | Recommended |
 
 > **Note:** Vercel deployment URLs (`*.vercel.app`) are automatically detected for auth callbacks and origins via Vercel system environment variables (`VERCEL_URL` / `VERCEL_PROJECT_PRODUCTION_URL`).
 
-`AI_MODEL` must be a full model ID such as `gemini-2.5-flash`, not a version
-shorthand such as `1.5`. Invalid shorthand falls back to `gemini-2.5-flash`
+`AI_MODEL` must be a full model ID such as `gemini-3.8-flash`, not a version
+shorthand such as `1.5`. Invalid shorthand falls back to `gemini-3.8-flash`
 and is reported as a warning by `/api/ai/status`. Update the variable under
 **Vercel Project Settings → Environment Variables** and redeploy to clear it.
 

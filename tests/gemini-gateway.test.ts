@@ -82,7 +82,26 @@ describe("generateManagerReplyViaGemini", () => {
     const { generateManagerReplyViaGemini } = await load();
     await generateManagerReplyViaGemini(baseRequest);
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/gemini-2.5-flash:generateContent");
+    expect(fetchMock.mock.calls[0][0]).toContain("/gemini-3.8-flash:generateContent");
+  });
+
+  it("falls back to the supported default when the configured model is not found", async () => {
+    const missing = {
+      ok: false,
+      status: 404,
+      text: async () => "model not found",
+    } as unknown as Response;
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      fetchMock.mock.calls.length === 1 ? missing : okReply("Fallback reply")
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { generateManagerReplyViaGemini } = await load();
+    const reply = await generateManagerReplyViaGemini(baseRequest);
+
+    expect(reply).toBe("Fallback reply");
+    expect(fetchMock.mock.calls[0][0]).toContain("/gemini-test:generateContent");
+    expect(fetchMock.mock.calls[1][0]).toContain("/gemini-3.8-flash:generateContent");
   });
 
   it("retries once on a provider 500 and then succeeds", async () => {
