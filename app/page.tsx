@@ -42,7 +42,7 @@ export default function Home() {
                 </Link>
               </div>
               <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-muted">
-                <Stat value="1" label="live simulation" />
+                <Stat value={String(CAREERS.filter((career) => career.available).length)} label="playable careers" />
                 <Divider />
                 <Stat value="~15 min" label="per simulation" />
                 <Divider />

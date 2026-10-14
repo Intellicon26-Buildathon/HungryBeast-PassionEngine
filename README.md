@@ -7,9 +7,10 @@ _telling_ you which career to pick, it lets you **step into the job** — solve 
 real problem, work with an AI manager, and get evidence-based feedback on what
 you actually did.
 
-> **Current status: pre-production beta.** The **Product Manager** simulation
-> works end-to-end. Other career cards are concepts, not playable features.
-> Production setup and remaining launch blockers are documented in
+> **Current status: pre-production beta.** All 24 listed career roles now have
+> role-specific fictional workplace simulations, task rubrics, and saved-answer
+> reports. Live Gemini and production backend services still need credentials.
+> Remaining launch blockers are documented in
 > [`docs/production-readiness.md`](docs/production-readiness.md).
 
 ---
@@ -21,18 +22,22 @@ interaction → Simulation completion → **Evidence-based evaluation** → **Da
 (persists across refresh).**
 
 - **Landing page** — value proposition + live workplace preview.
-- **Career catalogue** — lists only playable roles. The Product Manager
-  simulation is available; concept-only careers stay hidden until implemented.
-- **Career detail** — role, mission, manager, task sequence.
+- **Career catalogue** — 24 playable roles across software, data, design,
+  security, operations, and business.
+- **Career detail** — role-specific mission, fictional case context, typical
+  work, deliverables, collaborators, trade-offs, and task sequence.
 - **Simulation prep** — mission briefing before entering.
 - **Virtual Workplace** — the hero screen. Looks like a work tool, not a chatbot:
   company header, task rail with live progress, AI manager conversation, response
   box, loading / **retry** / completion states.
-- **AI manager** — uses Gemini when configured; development mode has a
-  deterministic local fallback.
+- **AI manager** — sends responses to Gemini when `GEMINI_API_KEY` is set. The
+  workplace shows whether Gemini is configured or local practice replies are
+  being used. A configured Gemini failure is shown instead of silently
+  switching to a mock reply.
 - **Evaluation** — rubric scores with **evidence quotes from your answers**,
-  observed skills (emerging / developing / demonstrated), strengths, areas to
-  work on, next steps, and an honest limitations note.
+  a skill-evidence infographic, role insights, observed skills (emerging /
+  developing / demonstrated), strengths, areas to practise, and next steps.
+  Reports can be printed or saved as PDF.
 - **Dashboard** — completed simulations, observed skills, saved results that
   survive a page refresh.
 - Plus: Supabase-backed email authentication, onboarding, learning resources,
@@ -45,8 +50,19 @@ error states throughout.
 
 ## Development demo mode
 
-Without backend credentials in development, the app uses browser-local
-persistence and deterministic stand-ins from [`lib/mockAI.ts`](lib/mockAI.ts):
+Without Supabase credentials, development uses browser-local persistence.
+Without a Gemini key, manager messages use clearly labelled deterministic
+practice replies from [`lib/mockAI.ts`](lib/mockAI.ts). To enable live Gemini
+locally:
+
+1. Copy `.env.example` to `.env.local`.
+2. Set `GEMINI_API_KEY` to a key from Google AI Studio.
+3. Keep `AI_MODEL=gemini-2.5-flash`, unless you have verified another model.
+4. Restart `npm run dev`; the workplace should report **Gemini configured**.
+
+The key stays server-side. The local-only `/api/ai/demo` route is disabled
+outside development. If a configured key or model fails, the app reports the
+provider error instead of disguising it as a successful Gemini reply.
 
 | Plan concept        | Prototype stand-in                                   |
 | ------------------- | ---------------------------------------------------- |
@@ -54,8 +70,9 @@ persistence and deterministic stand-ins from [`lib/mockAI.ts`](lib/mockAI.ts):
 | Evaluation          | `generateEvaluation()` — fixed-rubric scoring + evidence extraction |
 | Persistence         | `localStorage` via [`lib/store.ts`](lib/store.ts) |
 
-This mode is for local demonstration only. Production does not fall back to
-local data or mock AI when a backend/provider is unavailable.
+Browser-local persistence and practice replies are for local demonstration
+only. Production does not fall back to local data or mock AI when a
+backend/provider is unavailable.
 
 ---
 
@@ -79,8 +96,9 @@ npm run build
 npm run start
 ```
 
-No `.env` is required for local demo mode. `.env.example` lists the backend
-variables; production needs Supabase and Gemini configured.
+No `.env` is required for local practice mode. `.env.example` lists the
+variables; live Gemini needs `GEMINI_API_KEY`, while production also needs
+Supabase, Upstash, and the deployment settings below.
 
 ---
 
@@ -142,8 +160,8 @@ app/
 components/                     Header, footer, cards, icons, logo, auth shell
 lib/
   types.ts                      Domain types (mirror the planned DB schema)
-  scenarios.ts                  Career catalogue + the NovaTech PM scenario + rubric
-  mockAI.ts                     Role-play + evaluation stand-ins
+scenarios.ts                  Career catalogue, authored case studies and rubrics
+mockAI.ts                     Practice replies + evidence-based evaluation
   store.ts                      localStorage persistence (stands in for Supabase)
 ```
 
@@ -170,10 +188,14 @@ an authenticated end-to-end smoke test.
 
 ## Known limitations
 
-- Only the Product Manager simulation is playable; the other career cards are
-  not implemented.
-- Evaluation uses a fixed, deterministic rubric; it is not an adaptive AI
-  assessment.
+- Career case content and rubrics are currently source-controlled, not managed
+  through an in-app editor or realtime content service.
+- Scenarios use fictional organisations and workplace details for practice;
+  they are not live placements or claims about specific employers.
+- Evaluation uses a fixed, deterministic, role-specific rubric; it is not an
+  adaptive AI assessment or a career-fit diagnosis.
+- Gemini cannot run in this checkout until a valid `GEMINI_API_KEY` is added
+  to `.env.local` or the Vercel environment.
 - The application uses HTTP request/response flows, not realtime subscriptions.
 - See [`docs/production-readiness.md`](docs/production-readiness.md) before any
   public deployment.

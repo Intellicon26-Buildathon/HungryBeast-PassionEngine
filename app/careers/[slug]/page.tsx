@@ -63,6 +63,12 @@ export default async function CareerDetail({ params }: { params: Promise<{ slug:
                     </div>
                   </div>
                   <p className="mt-4 leading-relaxed text-ink">{scenario.mission}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+                    {scenario.context}
+                  </p>
+                  <p className="mt-3 text-xs font-medium text-ink-faint">
+                    Fictional case for practice. Company and case details are not real-world claims.
+                  </p>
                   <div className="mt-4 flex items-center gap-3 rounded-xl bg-brand-50 p-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">
                       {scenario.managerName.split(" ").map((w) => w[0]).join("")}
@@ -74,6 +80,20 @@ export default async function CareerDetail({ params }: { params: Promise<{ slug:
                     </p>
                   </div>
                 </div>
+
+                <section className="mt-8 rounded-2xl border border-line bg-surface p-5">
+                  <h2 className="text-lg font-bold text-ink">What the work involves</h2>
+                  {scenario.typicalWorkday && (
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
+                      {scenario.typicalWorkday}
+                    </p>
+                  )}
+                  <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                    <InsightList title="Typical deliverables" items={scenario.deliverables ?? []} />
+                    <InsightList title="People you work with" items={scenario.collaborators ?? []} />
+                    <InsightList title="Common trade-offs" items={scenario.tradeoffs ?? []} />
+                  </div>
+                </section>
 
                 <h2 className="mt-8 text-sm font-bold uppercase tracking-wider text-ink-faint">
                   What you&apos;ll do
@@ -167,6 +187,19 @@ function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; va
         {icon} {label}
       </p>
       <p className="mt-1 font-bold text-ink">{value}</p>
+    </div>
+  );
+}
+
+function InsightList({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null;
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-ink-muted">
+        {items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
     </div>
   );
 }

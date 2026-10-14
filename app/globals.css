@@ -114,3 +114,35 @@
     radial-gradient(circle at 1px 1px, rgba(20,22,28,0.055) 1px, transparent 0);
   background-size: 22px 22px;
 }
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #15171c !important;
+  }
+
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .report-section {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

@@ -17,8 +17,9 @@ export default function CareersPage() {
             Pick a job. Go and do it.
           </h1>
           <p className="mt-3 text-ink-muted">
-            Explore a playable simulation based on real product work. More
-            careers will appear here when their simulations are ready.
+            Choose from {careers.length} playable career simulations. Each uses
+            a fictional workplace case and role-specific tasks, with feedback
+            based on the answers you give.
           </p>
         </div>
 

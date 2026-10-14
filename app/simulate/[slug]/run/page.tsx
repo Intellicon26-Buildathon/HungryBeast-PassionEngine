@@ -9,6 +9,7 @@ import {
 } from "@/components/icons";
 import { getCareer, getScenarioForCareer } from "@/lib/scenarios";
 import * as api from "@/lib/api";
+import type { AiMode } from "@/lib/api";
 import type { Session, Scenario, Turn } from "@/lib/types";
 
 type Phase = "loading" | "thinking" | "awaiting" | "error" | "ready_to_finish" | "evaluating";
@@ -27,6 +28,7 @@ export default function RunPage({ params }: { params: Promise<{ slug: string }> 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [railOpen, setRailOpen] = useState(false);
+  const [aiMode, setAiMode] = useState<AiMode>("checking");
   const streamRef = useRef<HTMLDivElement>(null);
   // Latest session for async flows (avoids stale closures on retry).
   const sessionRef = useRef<Session | null>(null);
@@ -39,6 +41,7 @@ export default function RunPage({ params }: { params: Promise<{ slug: string }> 
 
   const fail = (err: unknown) => {
     if (api.isUnauthorized(err)) return api.redirectToSignIn();
+    if (err instanceof api.ApiError && err.status >= 500) setAiMode("unavailable");
     setErrorMsg(err instanceof Error ? err.message : null);
     setPhase("error");
   };
@@ -97,6 +100,12 @@ export default function RunPage({ params }: { params: Promise<{ slug: string }> 
   };
 
   // ── Load (or create) the session, then resume where it left off ──
+  useEffect(() => {
+    api.getAiStatus()
+      .then((status) => setAiMode(status.mode))
+      .catch(() => setAiMode("unavailable"));
+  }, []);
+
   useEffect(() => {
     if (!scenario || !career || initStarted.current) return;
     initStarted.current = true; // StrictMode runs effects twice in dev
@@ -208,6 +217,7 @@ export default function RunPage({ params }: { params: Promise<{ slug: string }> 
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <AiModeLabel mode={aiMode} />
           <div className="hidden items-center gap-2 text-[0.72rem] text-work-muted sm:flex">
             <span className="h-1.5 w-1.5 rounded-full bg-teal animate-pulse-dot" /> Workspace connected
           </div>
@@ -488,5 +498,31 @@ function Evaluating() {
         Scoring your responses against the rubric and gathering evidence.
       </p>
     </div>
+  );
+}
+
+function AiModeLabel({ mode }: { mode: AiMode }) {
+  const label = {
+    checking: "Checking AI",
+    gemini: "Gemini configured",
+    demo: "Practice replies",
+    unavailable: "Gemini unavailable",
+  }[mode];
+  const style = mode === "gemini"
+    ? "border-teal/30 text-teal"
+    : mode === "demo"
+    ? "border-amber/30 text-amber"
+    : "border-work-line text-work-muted";
+
+  return (
+    <span
+      aria-live="polite"
+      className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-medium ${style}`}
+      title={mode === "demo"
+        ? "Add GEMINI_API_KEY to .env.local to enable live Gemini responses."
+        : undefined}
+    >
+      {label}
+    </span>
   );
 }

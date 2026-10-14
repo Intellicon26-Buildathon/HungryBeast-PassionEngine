@@ -8,7 +8,15 @@ import { generateManagerReplyViaGemini } from '@/lib/ai/gemini';
 import { getScenario } from '@/lib/scenarios';
 import { serverEnv } from '@/lib/config';
 import { logger } from '@/lib/logger';
-import { NotFoundError, AppError, ValidationError, sanitizeError, normalizeError } from '@/lib/error';
+import {
+  NotFoundError,
+  AppError,
+  ConfigurationError,
+  ValidationError,
+  sanitizeError,
+  normalizeError,
+} from '@/lib/error';
+import { aiConfig } from '@/lib/config';
 
 const log = logger;
 
@@ -124,12 +132,17 @@ export async function POST(req: NextRequest) {
         { err: aiErr, userId: user.id, sessionId: input.sessionId },
         'AI provider failed'
       );
-      if (serverEnv.NODE_ENV === 'production') {
+      if (serverEnv.NODE_ENV === 'production' || aiConfig.enabled) {
+        const publicMessage = aiErr instanceof ConfigurationError
+          ? 'Gemini is not configured. Add GEMINI_API_KEY to the server environment.'
+          : aiErr instanceof AppError && aiErr.publicMessage
+          ? aiErr.publicMessage
+          : 'Gemini could not complete this reply. Check the server logs and try again.';
         throw new AppError(
           'ai_unavailable',
           'AI manager reply generation failed',
           503,
-          'The AI manager is temporarily unavailable. Your saved answer is safe; please try again shortly.'
+          `${publicMessage} Your saved answer is safe.`
         );
       }
       reply = generateManagerReply(scenario, task, lastAnswer, turns.length);

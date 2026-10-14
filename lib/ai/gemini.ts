@@ -91,11 +91,14 @@ interface GeminiGenerateContentResponse {
 }
 
 async function callGeminiOnce(req: ManagerReplyRequest, signal: AbortSignal): Promise<string> {
-  const url = `${GEMINI_BASE_URL}/${encodeURIComponent(aiConfig.model)}:generateContent?key=${encodeURIComponent(aiConfig.apiKey)}`;
+  const url = `${GEMINI_BASE_URL}/${encodeURIComponent(aiConfig.model)}:generateContent`;
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': aiConfig.apiKey,
+    },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: buildSystemInstruction(req) }] },
       contents: toGeminiContents(req),
@@ -116,13 +119,26 @@ async function callGeminiOnce(req: ManagerReplyRequest, signal: AbortSignal): Pr
     );
     // 429/5xx are retryable provider failures; 4xx are permanent.
     if (res.status === 429 || res.status >= 500) {
-      throw new ExternalServiceError('gemini', `Provider responded ${res.status}`, 502);
+      const publicMessage = res.status === 429
+        ? 'Gemini rejected the request because its quota or rate limit was reached. Check the Google AI Studio quota and try again.'
+        : 'Gemini is temporarily unavailable. Try again shortly.';
+      throw new ExternalServiceError(
+        'gemini',
+        `Provider responded ${res.status}`,
+        502,
+        publicMessage
+      );
     }
+    const publicMessage = res.status === 404
+      ? `Gemini model "${aiConfig.model}" was not found. Check AI_MODEL in your environment settings.`
+      : res.status === 401 || res.status === 403
+      ? 'Gemini denied access. Check that GEMINI_API_KEY is valid and the Gemini API is enabled for its project.'
+      : 'Gemini rejected the request. Check AI_MODEL and the server-side Gemini configuration.';
     throw new ExternalServiceError(
       'gemini',
       `Provider rejected request (${res.status})`,
       502,
-      'The AI provider rejected the request',
+      publicMessage,
       false
     );
   }

@@ -21,6 +21,13 @@ import type { Evaluation, Scenario, ScenarioTask, Session, Speaker, Turn } from 
 export const backendEnabled = isSupabaseBrowserConfigured;
 const localDemoMode = process.env.NODE_ENV !== "production" && !backendEnabled;
 
+export type AiMode = "checking" | "gemini" | "demo" | "unavailable";
+
+export interface AiStatus {
+  mode: Exclude<AiMode, "checking">;
+  model: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -33,6 +40,11 @@ export class ApiError extends Error {
 }
 
 export const isUnauthorized = (err: unknown) => err instanceof ApiError && err.status === 401;
+
+export async function getAiStatus(): Promise<AiStatus> {
+  const { status } = await request<{ status: AiStatus }>("/api/ai/status");
+  return status;
+}
 
 /** Send the user to sign in, then bring them back to where they were. */
 export function redirectToSignIn() {
@@ -165,9 +177,30 @@ export async function requestManagerReply(
   answer: string
 ): Promise<Session> {
   if (localDemoMode) {
-    // Simulated latency so the typing indicator reads naturally.
-    await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
-    const reply = generateManagerReply(scenario, task, answer, session.turns.length);
+    const aiStatus = await getAiStatus();
+    if (aiStatus.mode === "unavailable") {
+      throw new ApiError("Gemini is not configured for this environment.", 503);
+    }
+    if (aiStatus.mode === "demo") {
+      // Simulated latency makes the local practice reply feel like a conversation.
+      await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
+      const reply = generateManagerReply(scenario, task, answer, session.turns.length);
+      return local.addTurn(session, "manager", reply, task.id);
+    }
+
+    const { reply } = await request<{ reply: string }>("/api/ai/demo", {
+      method: "POST",
+      body: json({
+        careerSlug: scenario.careerSlug,
+        scenarioSlug: scenario.slug,
+        taskId: task.id,
+        studentAnswer: answer,
+        history: session.turns
+          .filter((turn) => turn.speaker === "manager" || turn.speaker === "student")
+          .slice(-12)
+          .map((turn) => ({ speaker: turn.speaker, content: turn.content })),
+      }),
+    });
     return local.addTurn(session, "manager", reply, task.id);
   }
   const { turn } = await request<{ turn: Turn }>("/api/ai", {
