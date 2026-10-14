@@ -7,7 +7,7 @@ const log = logger;
 
 export async function POST() {
   try {
-    const client = requireSupabaseRouteClient();
+    const client = await requireSupabaseRouteClient();
     const { error } = await client.auth.signOut({ scope: 'local' });
     if (error) {
       log.warn({ err: error }, 'Sign-out failed');

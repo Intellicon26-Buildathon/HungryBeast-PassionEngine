@@ -68,10 +68,16 @@ function toGeminiContents(req: ManagerReplyRequest) {
       parts: [{ text: t.content }],
     }));
 
-  contents.push({
-    role: 'user',
-    parts: [{ text: req.studentAnswer }],
-  });
+  const lastContent = contents[contents.length - 1];
+  const alreadyIncludesAnswer =
+    lastContent?.role === 'user' &&
+    lastContent.parts.some((part) => part.text === req.studentAnswer);
+  if (!alreadyIncludesAnswer) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: req.studentAnswer }],
+    });
+  }
 
   return contents;
 }

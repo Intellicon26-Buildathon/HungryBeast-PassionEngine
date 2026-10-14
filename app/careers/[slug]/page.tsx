@@ -8,12 +8,13 @@ import {
 } from "@/components/icons";
 
 export function generateStaticParams() {
-  return CAREERS.map((c) => ({ slug: c.slug }));
+  return CAREERS.filter((career) => career.available).map((career) => ({ slug: career.slug }));
 }
 
-export default function CareerDetail({ params }: { params: { slug: string } }) {
-  const career = getCareer(params.slug);
-  if (!career) notFound();
+export default async function CareerDetail({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const career = getCareer(slug);
+  if (!career?.available) notFound();
   const scenario = getScenarioForCareer(career.slug);
 
   return (

@@ -20,7 +20,7 @@ export default function Home() {
           <div className="container-px relative grid gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
             <div className="animate-fade-up">
               <span className="eyebrow">
-                <Sparkle width={15} height={15} /> AI career simulations
+                <Sparkle width={15} height={15} /> Career simulation
               </span>
               <h1 className="display mt-5 text-[2.7rem] font-semibold sm:text-6xl">
                 Experience the work.
@@ -42,7 +42,7 @@ export default function Home() {
                 </Link>
               </div>
               <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-muted">
-                <Stat value="24" label="career paths" />
+                <Stat value="1" label="live simulation" />
                 <Divider />
                 <Stat value="~15 min" label="per simulation" />
                 <Divider />
@@ -237,7 +237,7 @@ function HeroWorkplacePreview() {
             ideas. Before we touch anything — what do you want to understand first?
           </div>
           <div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-brand-500 p-3 text-[0.8rem] leading-relaxed text-white">
-            Which users churned, and when exactly did the drop start? I'd split by
+            Which users churned, and when exactly did the drop start? I&apos;d split by
             new vs. returning before guessing.
           </div>
           <div className="flex items-center gap-1.5 pl-1 text-[0.72rem] text-work-muted">

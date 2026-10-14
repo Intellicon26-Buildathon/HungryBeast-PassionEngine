@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const input = passwordResetConfirmSchema.parse(body);
 
-    const client = requireSupabaseRouteClient();
+    const client = await requireSupabaseRouteClient();
 
     const { error } = await client.auth.updateUser({
       password: input.password,

@@ -7,59 +7,61 @@ _telling_ you which career to pick, it lets you **step into the job** — solve 
 real problem, work with an AI manager, and get evidence-based feedback on what
 you actually did.
 
-> **IntelliCon'26 — Gate 2 prototype.** This is a working vertical slice, not the
-> finished platform. The **Product Manager** simulation is fully playable
-> end-to-end; the other careers are concept cards marked “Soon” in the catalogue.
+> **Current status: pre-production beta.** The **Product Manager** simulation
+> works end-to-end. Other career cards are concepts, not playable features.
+> Production setup and remaining launch blockers are documented in
+> [`docs/production-readiness.md`](docs/production-readiness.md).
 
 ---
 
-##  What works right now (the Gate 2 vertical slice)
+## What works now
 
 Landing → Career catalogue → Career detail → **Virtual Workplace** → AI manager
 interaction → Simulation completion → **Evidence-based evaluation** → **Dashboard
 (persists across refresh).**
 
 - **Landing page** — value proposition + live workplace preview.
-- **Career catalogue** — 24 role cards across technology, design, and business,
-  with area filters. Product Manager is live; the other roles are marked “Soon.”
+- **Career catalogue** — lists only playable roles. The Product Manager
+  simulation is available; concept-only careers stay hidden until implemented.
 - **Career detail** — role, mission, manager, task sequence.
 - **Simulation prep** — mission briefing before entering.
 - **Virtual Workplace** — the hero screen. Looks like a work tool, not a chatbot:
   company header, task rail with live progress, AI manager conversation, response
   box, loading / **retry** / completion states.
-- **AI manager** — responds to what you actually write (see _Mock AI_ below).
+- **AI manager** — uses Gemini when configured; development mode has a
+  deterministic local fallback.
 - **Evaluation** — rubric scores with **evidence quotes from your answers**,
   observed skills (emerging / developing / demonstrated), strengths, areas to
   work on, next steps, and an honest limitations note.
 - **Dashboard** — completed simulations, observed skills, saved results that
   survive a page refresh.
-- Plus: onboarding, sign-in/up stubs, learning resources, settings & privacy.
+- Plus: Supabase-backed email authentication, onboarding, learning resources,
+  settings & privacy when the backend is configured.
 
 **Fully responsive** (phone → desktop), keyboard-friendly, with empty / loading /
 error states throughout.
 
 ---
 
-##  The "AI" today: a built-in mock (zero keys needed)
+## Development demo mode
 
-So the whole flow is demonstrable **with no API keys and no database**, the two
-bounded AI agents from the plan are implemented as deterministic, client-side
-functions in [`lib/mockAI.ts`](lib/mockAI.ts):
+Without backend credentials in development, the app uses browser-local
+persistence and deterministic stand-ins from [`lib/mockAI.ts`](lib/mockAI.ts):
 
 | Plan concept        | Prototype stand-in                                   |
 | ------------------- | ---------------------------------------------------- |
 | Role-play agent     | `generateManagerReply()` — reacts to answer quality + detected themes |
-| Evaluation agent    | `generateEvaluation()` — rubric scoring + evidence extraction |
-| Database tables     | `localStorage` via [`lib/store.ts`](lib/store.ts)    |
+| Evaluation          | `generateEvaluation()` — fixed-rubric scoring + evidence extraction |
+| Persistence         | `localStorage` via [`lib/store.ts`](lib/store.ts) |
 
-These return the **exact same shapes** a real backend will, so wiring in real
-Gemini + Supabase later is a drop-in with **no UI changes** (see below).
+This mode is for local demonstration only. Production does not fall back to
+local data or mock AI when a backend/provider is unavailable.
 
 ---
 
 ## Run it locally
 
-**Requirements:** Node.js 18.17+ (LTS recommended).
+**Requirements:** Node.js 20.9+.
 
 ```bash
 npm install
@@ -77,36 +79,38 @@ npm run build
 npm run start
 ```
 
-No `.env` is required for the prototype. `.env.example` lists the variables the
-real backend will use.
+No `.env` is required for local demo mode. `.env.example` lists the backend
+variables; production needs Supabase and Gemini configured.
 
 ---
 
 ## 🚀 Deploying to Vercel
 
-The application is pre-configured for seamless zero-config deployment to **Vercel**:
+The application can be deployed to **Vercel** after configuring the required services:
 
 ### 1. Push & Import
 1. Push your repository to GitHub.
 2. In the [Vercel Dashboard](https://vercel.com/dashboard), click **Add New...** → **Project** and select this repository.
 3. Framework preset will automatically be detected as **Next.js**.
 
-### 2. Environment Variables (Optional for Prototype Mode)
-The project runs fully out of the box in **Prototype Mode** with built-in deterministic AI and browser persistence without requiring any environment variables.
+### 2. Environment Variables
+Local development can run in demo mode without credentials. Production must use
+Supabase-backed authentication and persistence. Gemini is required for live
+manager replies; if it is unavailable, production returns a service error
+instead of substituting a mock response.
 
 When you are ready to enable production backends, configure the following variables in **Vercel Project Settings → Environment Variables**:
 
 | Variable | Description | Required |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Optional (for real Auth/DB) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous public key | Optional (for real Auth/DB) |
-| `SUPABASE_URL` | Supabase server URL | Optional |
-| `SUPABASE_ANON_KEY` | Supabase server anon key | Optional |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) | Optional |
-| `GEMINI_API_KEY` | Google Gemini API key for live AI roleplay | Optional (falls back to mock AI) |
-| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL for rate limiting | Optional |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token | Optional |
-| `APP_ORIGIN` | Deployment origin URL (auto-detected via `VERCEL_URL` if omitted) | Optional |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Required |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous public key | Required |
+| `SUPABASE_URL` | Supabase project URL for privileged server tasks | Only for those tasks |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-only; never expose publicly) | Only for privileged tasks |
+| `GEMINI_API_KEY` | Google Gemini key for live manager replies | Required for live AI |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL for distributed AI rate limiting | Required for production AI |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token | Required for production AI |
+| `APP_ORIGIN` | Public deployment origin (auto-detected on Vercel if omitted) | Recommended |
 
 > **Note:** Vercel deployment URLs (`*.vercel.app`) are automatically detected for auth callbacks and origins via Vercel system environment variables (`VERCEL_URL` / `VERCEL_PROJECT_PRODUCTION_URL`).
 
@@ -118,12 +122,10 @@ When you are ready to enable production backends, configure the following variab
 
 ## 🛠 Tech stack
 
-- **Next.js 14** (App Router) + **React 18** + **TypeScript**
+- **Next.js 15** (App Router) + **React 18** + **TypeScript**
 - **Tailwind CSS** with a custom design system (see `tailwind.config.ts`)
 - Fonts: Plus Jakarta Sans + Fraunces (loaded at runtime)
-- Browser `localStorage` for prototype persistence
-
-Chosen to match the plan's stack so Supabase + Gemini slot in cleanly.
+- Supabase/PostgreSQL in backend mode; browser `localStorage` only in development demo mode
 
 ---
 
@@ -147,20 +149,10 @@ lib/
 
 ---
 
-## Wiring in real Gemini + Supabase (next step)
-
-The code is structured so this is additive, not a rewrite:
-
-1. **AI (server-side only):** add a route handler (e.g. `app/api/turn/route.ts`)
-   that calls Gemini with the prompt template from the plan, validates the JSON
-   against the evaluation schema, and returns the same shape `mockAI.ts` returns.
-   Point the workspace at it instead of the mock. **Never expose the Gemini key
-   in the browser** — all calls stay server-side.
-2. **Database:** replace the `lib/store.ts` functions with Supabase queries
-   (`simulation_sessions`, `simulation_turns`, `session_evaluations`). The function
-   names and return types already match.
-3. **Auth:** swap the sign-in/up stubs for Supabase Auth; enable RLS so students
-   only read their own sessions.
+The Supabase API/data layer and server-side Gemini gateway are implemented.
+Before public launch, deploy the schema, verify production credentials and
+email delivery, close the remaining gaps in the readiness report, and complete
+an authenticated end-to-end smoke test.
 
 ---
 
@@ -176,12 +168,15 @@ The code is structured so this is additive, not a rewrite:
 
 ---
 
-##  Known limitations (Gate 2)
+## Known limitations
 
-- AI responses are a deterministic mock until Gemini is wired in.
-- Persistence is browser-local (per device) until Supabase is wired in.
-- Only the Product Manager simulation is fully built.
-- `next@14.2.x` carries a deprecation advisory; upgrade before a public pilot.
+- Only the Product Manager simulation is playable; the other career cards are
+  not implemented.
+- Evaluation uses a fixed, deterministic rubric; it is not an adaptive AI
+  assessment.
+- The application uses HTTP request/response flows, not realtime subscriptions.
+- See [`docs/production-readiness.md`](docs/production-readiness.md) before any
+  public deployment.
 
 ---
 

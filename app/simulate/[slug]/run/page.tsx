@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
@@ -16,9 +16,10 @@ type Phase = "loading" | "thinking" | "awaiting" | "error" | "ready_to_finish" |
 const WRAP_UP =
   "That's everything I needed. Great work holding a clear head on this — let's wrap up and see how it went.";
 
-export default function RunPage({ params }: { params: { slug: string } }) {
+export default function RunPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const router = useRouter();
-  const career = getCareer(params.slug);
+  const career = getCareer(slug);
   const scenario = career ? getScenarioForCareer(career.slug) : undefined;
 
   const [session, setSessionState] = useState<Session | null>(null);
@@ -26,7 +27,6 @@ export default function RunPage({ params }: { params: { slug: string } }) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [railOpen, setRailOpen] = useState(false);
-  const [forceError, setForceError] = useState(false);
   const streamRef = useRef<HTMLDivElement>(null);
   // Latest session for async flows (avoids stale closures on retry).
   const sessionRef = useRef<Session | null>(null);
@@ -66,11 +66,6 @@ export default function RunPage({ params }: { params: { slug: string } }) {
     const last = s.turns[s.turns.length - 1];
     if (last?.speaker === "student") {
       setPhase("thinking");
-      if (forceError) {
-        // Demo toggle: simulate a dropped provider reply.
-        setForceError(false);
-        throw new Error("The AI reply was dropped (demo).");
-      }
       await step(api.requestManagerReply(s, scenario, tasks[s.currentTaskIndex], last.content));
     }
 
@@ -307,15 +302,6 @@ export default function RunPage({ params }: { params: { slug: string } }) {
                     className="w-full resize-none bg-transparent px-4 py-3 text-sm text-work-text placeholder:text-work-muted/70 focus:outline-none"
                   />
                   <div className="flex items-center justify-between px-3 pb-3">
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[0.68rem] text-work-muted/80">
-                      <input
-                        type="checkbox"
-                        checked={forceError}
-                        onChange={(e) => setForceError(e.target.checked)}
-                        className="h-3 w-3 rounded border-work-line"
-                      />
-                      Demo: drop next AI reply (to show retry)
-                    </label>
                     <div className="flex items-center gap-3">
                       <span className="text-[0.68rem] text-work-muted/70">{input.length}/3000</span>
                       <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -16,14 +16,19 @@ const LEVEL_STYLE: Record<SkillLevel, { label: string; cls: string; dots: number
   demonstrated: { label: "Demonstrated", cls: "bg-teal-soft text-teal", dots: 3 },
 };
 
-export default function EvaluationPage({ params }: { params: { sessionId: string } }) {
+export default function EvaluationPage({
+  params,
+}: {
+  params: Promise<{ sessionId: string }>;
+}) {
+  const { sessionId } = use(params);
   const [ev, setEv] = useState<Evaluation | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     api
-      .getEvaluation(params.sessionId)
+      .getEvaluation(sessionId)
       .then((e) => alive && setEv(e))
       .catch((err) => {
         if (api.isUnauthorized(err)) return api.redirectToSignIn();
@@ -34,7 +39,7 @@ export default function EvaluationPage({ params }: { params: { sessionId: string
     return () => {
       alive = false;
     };
-  }, [params.sessionId]);
+  }, [sessionId]);
 
   if (ev === undefined) {
     return (

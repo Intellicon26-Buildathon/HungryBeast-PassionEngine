@@ -66,6 +66,12 @@ describe("generateManagerReplyViaGemini", () => {
     const url = fetchMock.mock.calls[0][0] as string;
     expect(url).toContain("key=test-key");
     expect(url).toContain("gemini-test");
+    const payload = JSON.parse(String(init.body)) as {
+      contents: { role: string; parts: { text: string }[] }[];
+    };
+    expect(
+      payload.contents.flatMap((content) => content.parts).filter((part) => part.text === baseRequest.studentAnswer)
+    ).toHaveLength(1);
   });
 
   it("retries once on a provider 500 and then succeeds", async () => {

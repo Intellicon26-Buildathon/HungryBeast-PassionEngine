@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -11,11 +11,12 @@ import {
 } from "@/components/icons";
 import { notFound } from "next/navigation";
 
-export default function SimulationPrep({ params }: { params: { slug: string } }) {
+export default function SimulationPrep({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const router = useRouter();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const career = getCareer(params.slug);
+  const career = getCareer(slug);
   const scenario = career ? getScenarioForCareer(career.slug) : undefined;
 
   if (!career) return notFound();

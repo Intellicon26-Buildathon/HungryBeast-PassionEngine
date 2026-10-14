@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const input = signInSchema.parse(body);
 
-    const client = requireSupabaseRouteClient();
+    const client = await requireSupabaseRouteClient();
 
     const { data, error } = await client.auth.signInWithPassword({
       email: input.email,

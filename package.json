@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint app components lib tests e2e middleware.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "vitest",
@@ -20,7 +20,7 @@
     "@supabase/supabase-js": "^2.117.2",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.39.0",
-    "next": "^14.2.33",
+    "next": "^15.5.28",
     "pino": "^10.4.0",
     "pino-pretty": "^13.2.0",
     "react": "18.3.1",
@@ -35,11 +35,16 @@
     "@vitest/ui": "^5.0.3",
     "autoprefixer": "10.4.19",
     "dotenv": "^18.0.5",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.24",
     "jsdom": "^29.1.1",
-    "postcss": "8.4.39",
+    "postcss": "^8.5.30",
     "tailwindcss": "3.4.6",
     "tsx": "^4.23.15",
     "typescript": "5.5.3",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "postcss": "$postcss"
   }
 }

@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // completely inert: every check passes and no Redis client is constructed.
 
 const ENV_SNAPSHOT = { ...process.env };
+const setEnv = (name: string, value: string) => {
+  process.env[name] = value;
+};
 
 beforeEach(() => {
   vi.resetModules();
@@ -24,6 +27,15 @@ describe("rate limit without Upstash configured", () => {
     expect(result).toEqual({ allowed: true, remaining: 5, resetAt: null });
 
     await expect(enforceRateLimit("scope", "key", 5, 60)).resolves.toBeUndefined();
+  });
+
+  it("fails closed in production when Redis is not configured", async () => {
+    setEnv("NODE_ENV", "production");
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+
+    await expect(checkRateLimit("scope", "key", 5, 60)).rejects.toThrow(
+      /Upstash Redis must be configured/
+    );
   });
 });
 
@@ -50,6 +62,36 @@ describe("rate limit with Upstash configured", () => {
 
     const { enforceRateLimit } = await import("@/lib/rate-limit");
     await expect(enforceRateLimit("scope", "key", 5, 60)).rejects.toThrow(/Too many requests/i);
+    expect(limit).toHaveBeenCalled();
+  });
+
+  it("fails closed in production when Redis is unreachable", async () => {
+    setEnv("NODE_ENV", "production");
+    process.env.UPSTASH_REDIS_REST_URL = "https://cache.example.com";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "token";
+
+    const limit = vi.fn(async () => {
+      throw new Error("Redis unavailable");
+    });
+    vi.doMock("@upstash/ratelimit", () => ({
+      Ratelimit: class {
+        constructor(_opts: unknown) {}
+        static slidingWindow() {
+          return () => {};
+        }
+        limit = limit;
+      },
+    }));
+    vi.doMock("@upstash/redis", () => ({
+      Redis: class {
+        constructor(_opts: unknown) {}
+      },
+    }));
+
+    const { enforceRateLimit } = await import("@/lib/rate-limit");
+    await expect(enforceRateLimit("scope", "key", 5, 60)).rejects.toThrow(
+      /rate.limit check failed/i
+    );
     expect(limit).toHaveBeenCalled();
   });
 });

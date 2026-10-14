@@ -12,13 +12,14 @@ import type { Evaluation, Scenario, ScenarioTask, Session, Speaker, Turn } from 
 //
 //   • Backend mode (Supabase configured): every call hits the Next.js API
 //     routes, which authenticate via the auth cookie and persist to Postgres.
-//   • Prototype mode (no Supabase env): falls back to the browser-local store
-//     and the deterministic mock AI, so the demo still runs with zero setup.
+//   • Development demo mode (no Supabase env): uses browser-local persistence
+//     and deterministic mock AI. Production always uses the API.
 //
 // Pages never import lib/store directly any more.
 // ---------------------------------------------------------------------------
 
 export const backendEnabled = isSupabaseBrowserConfigured;
+const localDemoMode = process.env.NODE_ENV !== "production" && !backendEnabled;
 
 export class ApiError extends Error {
   constructor(
@@ -96,14 +97,14 @@ export async function signOut(): Promise<void> {
 // ── Sessions ────────────────────────────────────────────────────────
 
 export async function listSessions(): Promise<Session[]> {
-  if (!backendEnabled) return local.listSessions();
+  if (localDemoMode) return local.listSessions();
   const { sessions } = await request<{ sessions: Session[] }>("/api/sessions");
   return sessions;
 }
 
 /** Session with its full turn history, or null if it doesn't exist / isn't yours. */
 export async function getSession(id: string): Promise<Session | null> {
-  if (!backendEnabled) return local.getSession(id) ?? null;
+  if (localDemoMode) return local.getSession(id) ?? null;
   try {
     const { session } = await request<{ session: Session }>(
       `/api/sessions/${encodeURIComponent(id)}`
@@ -117,7 +118,7 @@ export async function getSession(id: string): Promise<Session | null> {
 }
 
 export async function createSession(scenarioSlug: string, careerSlug: string): Promise<Session> {
-  if (!backendEnabled) return local.createSession(scenarioSlug, careerSlug);
+  if (localDemoMode) return local.createSession(scenarioSlug, careerSlug);
   const { session } = await request<{ session: Session }>("/api/sessions", {
     method: "POST",
     body: json({ scenarioSlug, careerSlug }),
@@ -132,7 +133,7 @@ export async function addTurn(
   content: string,
   taskId?: string
 ): Promise<Session> {
-  if (!backendEnabled) return local.addTurn(session, speaker, content, taskId);
+  if (localDemoMode) return local.addTurn(session, speaker, content, taskId);
   const { turn } = await request<{ turn: Turn }>(
     `/api/sessions/${encodeURIComponent(session.id)}/turns`,
     { method: "POST", body: json({ speaker, content, taskId }) }
@@ -141,7 +142,7 @@ export async function addTurn(
 }
 
 export async function setCurrentTask(session: Session, index: number): Promise<Session> {
-  if (!backendEnabled) {
+  if (localDemoMode) {
     const updated = { ...session, currentTaskIndex: index };
     local.saveSession(updated);
     return updated;
@@ -163,7 +164,7 @@ export async function requestManagerReply(
   task: ScenarioTask,
   answer: string
 ): Promise<Session> {
-  if (!backendEnabled) {
+  if (localDemoMode) {
     // Simulated latency so the typing indicator reads naturally.
     await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
     const reply = generateManagerReply(scenario, task, answer, session.turns.length);
@@ -175,7 +176,6 @@ export async function requestManagerReply(
       sessionId: session.id,
       scenarioSlug: scenario.slug,
       taskId: task.id,
-      lastStudentAnswer: answer,
     }),
   });
   return { ...session, turns: [...session.turns, turn] };
@@ -187,7 +187,7 @@ export async function finishSession(
   scenario: Scenario,
   careerTitle: string
 ): Promise<Evaluation> {
-  if (!backendEnabled) {
+  if (localDemoMode) {
     await new Promise((r) => setTimeout(r, 1200));
     const s = local.getSession(session.id) ?? session;
     const done: Session = { ...s, status: "completed", completedAt: Date.now() };
@@ -206,7 +206,7 @@ export async function finishSession(
 // ── Evaluations ─────────────────────────────────────────────────────
 
 export async function getEvaluation(sessionId: string): Promise<Evaluation | null> {
-  if (!backendEnabled) return local.getEvaluation(sessionId) ?? null;
+  if (localDemoMode) return local.getEvaluation(sessionId) ?? null;
   try {
     const { evaluation } = await request<{ evaluation: Evaluation }>(
       `/api/sessions/${encodeURIComponent(sessionId)}/evaluation`
@@ -219,7 +219,7 @@ export async function getEvaluation(sessionId: string): Promise<Evaluation | nul
 }
 
 export async function listEvaluations(): Promise<Evaluation[]> {
-  if (!backendEnabled) return local.listEvaluations();
+  if (localDemoMode) return local.listEvaluations();
   const { evaluations } = await request<{ evaluations: Evaluation[] }>("/api/evaluations");
   return evaluations;
 }
@@ -252,6 +252,6 @@ export async function updateProfile(
 
 /** Delete every session + evaluation the user has. */
 export async function clearAllData(): Promise<void> {
-  if (!backendEnabled) return local.resetAll();
+  if (localDemoMode) return local.resetAll();
   await request("/api/sessions", { method: "DELETE" });
 }

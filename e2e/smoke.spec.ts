@@ -11,6 +11,7 @@ test("landing page renders the product promise", async ({ page }) => {
 test("career catalogue shows the live simulation and links to detail", async ({ page }) => {
   await page.goto("/careers");
   await expect(page.getByText("Product Manager").first()).toBeVisible();
+  await expect(page.getByText("Soon", { exact: true })).toHaveCount(0);
 
   await page.goto("/careers/product-manager");
   await expect(page.locator("h1").first()).toBeVisible();
