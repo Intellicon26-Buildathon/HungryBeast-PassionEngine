@@ -74,6 +74,17 @@ describe("generateManagerReplyViaGemini", () => {
     ).toHaveLength(1);
   });
 
+  it("uses the supported default when AI_MODEL is only a version shorthand", async () => {
+    process.env.AI_MODEL = "1.5";
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okReply("A useful reply."));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { generateManagerReplyViaGemini } = await load();
+    await generateManagerReplyViaGemini(baseRequest);
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/gemini-2.5-flash:generateContent");
+  });
+
   it("retries once on a provider 500 and then succeeds", async () => {
     const fail = {
       ok: false,
