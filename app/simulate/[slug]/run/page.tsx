@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
@@ -8,41 +8,119 @@ import {
   Send, Check, CheckCircle, Refresh, Target, ArrowRight, Close, Bulb, Briefcase,
 } from "@/components/icons";
 import { getCareer, getScenarioForCareer } from "@/lib/scenarios";
-import {
-  getSession, createSession, addTurn, saveSession, saveEvaluation,
-} from "@/lib/store";
-import { generateManagerReply, generateEvaluation } from "@/lib/mockAI";
+import * as api from "@/lib/api";
 import type { Session, Scenario, Turn } from "@/lib/types";
 
-type Phase = "idle" | "thinking" | "awaiting" | "error" | "ready_to_finish" | "evaluating";
+type Phase = "loading" | "thinking" | "awaiting" | "error" | "ready_to_finish" | "evaluating";
+
+const WRAP_UP =
+  "That's everything I needed. Great work holding a clear head on this — let's wrap up and see how it went.";
 
 export default function RunPage({ params }: { params: { slug: string } }) {
   const router = useRouter();
   const career = getCareer(params.slug);
   const scenario = career ? getScenarioForCareer(career.slug) : undefined;
 
-  const [session, setSession] = useState<Session | null>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [session, setSessionState] = useState<Session | null>(null);
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [railOpen, setRailOpen] = useState(false);
   const [forceError, setForceError] = useState(false);
   const streamRef = useRef<HTMLDivElement>(null);
-  const pendingAnswer = useRef<string | null>(null);
+  // Latest session for async flows (avoids stale closures on retry).
+  const sessionRef = useRef<Session | null>(null);
+  const initStarted = useRef(false);
 
-  // ── Load or create the session, seed the first manager message ──
-  useEffect(() => {
-    if (!scenario || !career) return;
-    const qs = new URLSearchParams(window.location.search);
-    const id = qs.get("session");
-    let s = id ? getSession(id) : undefined;
-    if (!s) s = createSession(scenario.slug, career.slug);
+  const setSession = (s: Session) => {
+    sessionRef.current = s;
+    setSessionState(s);
+  };
+
+  const fail = (err: unknown) => {
+    if (api.isUnauthorized(err)) return api.redirectToSignIn();
+    setErrorMsg(err instanceof Error ? err.message : null);
+    setPhase("error");
+  };
+
+  /**
+   * Drive the conversation forward from whatever is persisted. Every step
+   * checks the transcript first, so it is safe to call again after a
+   * failure (retry) or a page reload — nothing is duplicated.
+   */
+  const advance = async (start: Session) => {
+    if (!scenario) return;
+    const tasks = scenario.tasks;
+    let s = start;
+    const step = async (p: Promise<Session>) => {
+      s = await p;
+      setSession(s);
+    };
+    const has = (pred: (t: Turn) => boolean) => s.turns.some(pred);
 
     if (s.turns.length === 0) {
-      s = addTurn(s, "system", `You've joined ${scenario.company} as ${scenario.role}.`);
-      s = addTurn(s, "manager", scenario.tasks[0].brief, scenario.tasks[0].id);
+      await step(api.addTurn(s, "system", `You've joined ${scenario.company} as ${scenario.role}.`));
     }
-    setSession(s);
-    setPhase(s.status === "completed" ? "ready_to_finish" : "awaiting");
+
+    // 1. Respond to an unanswered student message.
+    const last = s.turns[s.turns.length - 1];
+    if (last?.speaker === "student") {
+      setPhase("thinking");
+      if (forceError) {
+        // Demo toggle: simulate a dropped provider reply.
+        setForceError(false);
+        throw new Error("The AI reply was dropped (demo).");
+      }
+      await step(api.requestManagerReply(s, scenario, tasks[s.currentTaskIndex], last.content));
+    }
+
+    // 2. Make sure the current task has been briefed.
+    let cur = tasks[s.currentTaskIndex];
+    const briefed = (id: string, brief: string) =>
+      has((t) => t.speaker === "manager" && t.taskId === id && t.content === brief);
+    if (!briefed(cur.id, cur.brief)) {
+      await step(api.addTurn(s, "manager", cur.brief, cur.id));
+      return setPhase("awaiting");
+    }
+
+    // 3. Still waiting on the student's answer for this task.
+    if (!has((t) => t.speaker === "student" && t.taskId === cur.id)) {
+      return setPhase("awaiting");
+    }
+
+    // 4. Answered → move to the next task, or wrap up after the last one.
+    if (s.currentTaskIndex < tasks.length - 1) {
+      await step(api.setCurrentTask(s, s.currentTaskIndex + 1));
+      cur = tasks[s.currentTaskIndex];
+      await step(api.addTurn(s, "manager", cur.brief, cur.id));
+      return setPhase("awaiting");
+    }
+    if (!has((t) => t.speaker === "manager" && t.content === WRAP_UP)) {
+      await step(api.addTurn(s, "manager", WRAP_UP));
+    }
+    setPhase("ready_to_finish");
+  };
+
+  // ── Load (or create) the session, then resume where it left off ──
+  useEffect(() => {
+    if (!scenario || !career || initStarted.current) return;
+    initStarted.current = true; // StrictMode runs effects twice in dev
+
+    (async () => {
+      try {
+        const id = new URLSearchParams(window.location.search).get("session");
+        let s = id ? await api.getSession(id) : null;
+        if (!s) {
+          s = await api.createSession(scenario.slug, career.slug);
+          router.replace(`/simulate/${career.slug}/run?session=${s.id}`);
+        }
+        setSession(s);
+        if (s.status === "completed") return setPhase("ready_to_finish");
+        await advance(s);
+      } catch (err) {
+        fail(err);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -53,74 +131,55 @@ export default function RunPage({ params }: { params: { slug: string } }) {
 
   const currentTask = scenario?.tasks[session?.currentTaskIndex ?? 0];
 
-  const runManagerReply = useCallback(
-    (answer: string, taskIndex: number) => {
-      if (!scenario || !session) return;
-      setPhase("thinking");
-      pendingAnswer.current = answer;
-
-      window.setTimeout(() => {
-        // Simulated provider failure → recoverable retry state.
-        if (forceError) {
-          setForceError(false);
-          setPhase("error");
-          return;
-        }
-        let s = getSession(session.id)!;
-        const task = scenario.tasks[taskIndex];
-        const ack = generateManagerReply(scenario, task, answer, s.turns.length);
-        s = addTurn(s, "manager", ack);
-
-        const isLast = taskIndex >= scenario.tasks.length - 1;
-        if (!isLast) {
-          const next = scenario.tasks[taskIndex + 1];
-          s = { ...s, currentTaskIndex: taskIndex + 1 };
-          saveSession(s);
-          s = addTurn(s, "manager", next.brief, next.id);
-          setSession(s);
-          setPhase("awaiting");
-        } else {
-          s = addTurn(
-            s,
-            "manager",
-            "That's everything I needed. Great work holding a clear head on this — let's wrap up and see how it went."
-          );
-          setSession(s);
-          setPhase("ready_to_finish");
-        }
-        pendingAnswer.current = null;
-      }, 1100 + Math.random() * 700);
-    },
-    [scenario, session, forceError]
-  );
-
-  const submit = () => {
-    if (!scenario || !session || !currentTask) return;
+  const submit = async () => {
+    const s = sessionRef.current;
+    if (!scenario || !s || !currentTask) return;
     const answer = input.trim();
-    if (answer.length < 2 || phase === "thinking") return;
-    const taskIndex = session.currentTaskIndex;
-    const s = addTurn(session, "student", answer, currentTask.id);
-    setSession(s);
+    if (answer.length < 2 || phase !== "awaiting") return;
+    setPhase("thinking");
+    setErrorMsg(null);
+    let withAnswer: Session;
+    try {
+      withAnswer = await api.addTurn(s, "student", answer, currentTask.id);
+    } catch (err) {
+      // The answer didn't save: keep it in the box so they can resend.
+      if (api.isUnauthorized(err)) return api.redirectToSignIn();
+      setErrorMsg(err instanceof Error ? err.message : "Your answer couldn't be sent.");
+      return setPhase("awaiting");
+    }
+    setSession(withAnswer);
     setInput("");
-    runManagerReply(answer, taskIndex);
+    try {
+      await advance(withAnswer);
+    } catch (err) {
+      fail(err);
+    }
   };
 
-  const retry = () => {
-    if (pendingAnswer.current == null || !session) return;
-    runManagerReply(pendingAnswer.current, session.currentTaskIndex);
+  const retry = async () => {
+    const s = sessionRef.current;
+    if (!s) return;
+    setErrorMsg(null);
+    setPhase("thinking");
+    try {
+      await advance(s);
+    } catch (err) {
+      fail(err);
+    }
   };
 
-  const finish = () => {
-    if (!scenario || !session || !career) return;
+  const finish = async () => {
+    const s = sessionRef.current;
+    if (!scenario || !s || !career) return;
     setPhase("evaluating");
-    window.setTimeout(() => {
-      let s = getSession(session.id)!;
-      s = { ...s, status: "completed", completedAt: Date.now() };
-      saveSession(s);
-      const ev = generateEvaluation(scenario, s, career.title);
-      saveEvaluation(ev);
+    try {
+      await api.finishSession(s, scenario, career.title);
       router.push(`/evaluation/${s.id}`);
-    }, 1600);
+    } catch (err) {
+      if (api.isUnauthorized(err)) return api.redirectToSignIn();
+      setErrorMsg(err instanceof Error ? err.message : null);
+      setPhase("ready_to_finish");
+    }
   };
 
   if (!career || !scenario) {
@@ -203,7 +262,10 @@ export default function RunPage({ params }: { params: { slug: string } }) {
                 <Bubble key={t.id} turn={t} manager={scenario.managerName} />
               ))}
               {phase === "thinking" && <Typing name={scenario.managerName} />}
-              {phase === "error" && <ErrorCard onRetry={retry} />}
+              {phase === "loading" && (
+                <p className="text-center text-sm text-work-muted">Opening your workspace…</p>
+              )}
+              {phase === "error" && <ErrorCard onRetry={retry} message={errorMsg} />}
               {phase === "evaluating" && <Evaluating />}
               {phase === "ready_to_finish" && (
                 <div className="animate-fade-up rounded-2xl border border-teal/30 bg-teal/[0.08] p-5 text-center">
@@ -212,6 +274,7 @@ export default function RunPage({ params }: { params: { slug: string } }) {
                   <p className="mt-1 text-sm text-work-muted">
                     Ready to see your evidence-based evaluation?
                   </p>
+                  {errorMsg && <p className="mt-2 text-sm text-accent">{errorMsg}</p>}
                   <button onClick={finish} className="btn btn-accent btn-lg mx-auto mt-4">
                     Finish &amp; get my evaluation <ArrowRight width={18} height={18} />
                   </button>
@@ -224,6 +287,9 @@ export default function RunPage({ params }: { params: { slug: string } }) {
           {(phase === "awaiting" || phase === "thinking" || phase === "error") && currentTask && (
             <div className="border-t border-work-line bg-work-panel px-4 py-4 sm:px-8">
               <div className="mx-auto max-w-2xl">
+                {phase === "awaiting" && errorMsg && (
+                  <p role="alert" className="mb-2 text-[0.75rem] text-accent">{errorMsg} Try sending again.</p>
+                )}
                 <div className="mb-2 flex items-center gap-2 text-[0.72rem] text-work-muted">
                   <Bulb width={14} height={14} className="text-amber" />
                   <span>{currentTask.hint}</span>
@@ -254,7 +320,7 @@ export default function RunPage({ params }: { params: { slug: string } }) {
                       <span className="text-[0.68rem] text-work-muted/70">{input.length}/3000</span>
                       <button
                         onClick={submit}
-                        disabled={input.trim().length < 2 || phase === "thinking"}
+                        disabled={input.trim().length < 2 || phase !== "awaiting"}
                         className="btn btn-primary btn-sm"
                       >
                         {phase === "thinking" ? "Sending…" : <>Send <Send width={15} height={15} /></>}
@@ -409,7 +475,7 @@ function Typing({ name }: { name: string }) {
   );
 }
 
-function ErrorCard({ onRetry }: { onRetry: () => void }) {
+function ErrorCard({ onRetry, message }: { onRetry: () => void; message: string | null }) {
   return (
     <div className="animate-fade-up rounded-2xl border border-accent/40 bg-accent/[0.08] p-4">
       <p className="text-sm font-semibold text-work-text">Couldn&apos;t reach the AI just now</p>
@@ -417,6 +483,7 @@ function ErrorCard({ onRetry }: { onRetry: () => void }) {
         The response didn&apos;t come through. Your answer is safe — nothing was
         lost. Try again.
       </p>
+      {message && <p className="mt-1 text-xs text-work-muted/80">{message}</p>}
       <button onClick={onRetry} className="btn btn-outline btn-sm mt-3 border-work-line text-work-text hover:bg-white/5">
         <Refresh width={15} height={15} /> Retry
       </button>

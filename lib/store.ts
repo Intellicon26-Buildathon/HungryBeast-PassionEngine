@@ -31,7 +31,7 @@ function safeWrite(key: string, value: unknown) {
 }
 
 function uid(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 // ── Sessions ────────────────────────────────────────────────────────

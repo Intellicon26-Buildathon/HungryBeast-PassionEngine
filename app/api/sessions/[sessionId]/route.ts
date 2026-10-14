@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
-import { getSessionById, updateSession } from '@/lib/db';
-import { getSessionSchema, completeSessionSchema } from '@/lib/validation';
+import { getSessionById, listTurnsBySession, updateSession } from '@/lib/db';
+import { toClientSession } from '@/lib/db/mappers';
+import { updateSessionSchema } from '@/lib/validation';
+import { getScenario } from '@/lib/scenarios';
 import { logger } from '@/lib/logger';
-import { NotFoundError, ValidationError, ForbiddenError, AppError, sanitizeError } from '@/lib/error';
+import { AppError, ValidationError, sanitizeError, normalizeError } from '@/lib/error';
+import type { SimulationSession } from '@/lib/db/schema';
 
 const log = logger;
 
 export const dynamic = 'force-dynamic';
 
+/** Session detail, including its full turn history. */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -18,21 +22,11 @@ export async function GET(
     const { sessionId } = await params;
 
     const session = await getSessionById(user.id, sessionId);
+    const turns = await listTurnsBySession(user.id, sessionId);
 
-    return NextResponse.json({
-      ok: true,
-      session: {
-        id: session.id,
-        scenarioSlug: session.scenario_slug,
-        careerSlug: session.career_slug,
-        status: session.status,
-        currentTaskIndex: session.current_task_index,
-        turns: [],
-        startedAt: session.started_at,
-        completedAt: session.completed_at,
-      },
-    });
+    return NextResponse.json({ ok: true, session: toClientSession(session, turns) });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }
@@ -41,6 +35,7 @@ export async function GET(
   }
 }
 
+/** Advance the task pointer and/or change status (e.g. abandon). */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -50,31 +45,32 @@ export async function PATCH(
     const { sessionId } = await params;
 
     const body = await request.json().catch(() => ({}));
-    const input = completeSessionSchema.parse(body);
+    const input = updateSessionSchema.parse(body);
 
     const session = await getSessionById(user.id, sessionId);
 
-    const updated = await updateSession(user.id, sessionId, {
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-    });
+    const updates: Partial<SimulationSession> = { updated_at: new Date().toISOString() };
 
-    log.info({ userId: user.id, sessionId, beforeStatus: session.status }, 'Session completed');
+    if (input.currentTaskIndex !== undefined) {
+      const scenario = getScenario(session.scenario_slug);
+      const max = scenario ? scenario.tasks.length - 1 : 0;
+      if (input.currentTaskIndex > max) {
+        throw new ValidationError('Task index is out of range for this simulation.');
+      }
+      updates.current_task_index = input.currentTaskIndex;
+    }
+    if (input.status !== undefined) {
+      updates.status = input.status;
+      updates.completed_at = input.status === 'completed' ? new Date().toISOString() : null;
+    }
 
-    return NextResponse.json({
-      ok: true,
-      session: {
-        id: updated.id,
-        scenarioSlug: updated.scenario_slug,
-        careerSlug: updated.career_slug,
-        status: updated.status,
-        currentTaskIndex: updated.current_task_index,
-        turns: [],
-        startedAt: updated.started_at,
-        completedAt: updated.completed_at,
-      },
-    });
+    const updated = await updateSession(user.id, sessionId, updates);
+
+    log.info({ userId: user.id, sessionId, input }, 'Session updated');
+
+    return NextResponse.json({ ok: true, session: toClientSession(updated) });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }

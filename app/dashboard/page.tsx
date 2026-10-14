@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { listSessions, listEvaluations } from "@/lib/store";
+import * as api from "@/lib/api";
 import { getScenario, getCareer, CAREERS } from "@/lib/scenarios";
 import type { Session, Evaluation } from "@/lib/types";
 import { CareerCard } from "@/components/CareerCard";
@@ -16,20 +16,39 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [evals, setEvals] = useState<Evaluation[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = () => {
-      setSessions(listSessions());
-      setEvals(listEvaluations());
-      setReady(true);
+    let alive = true;
+    const load = async () => {
+      try {
+        const [s, e] = await Promise.all([api.listSessions(), api.listEvaluations()]);
+        if (!alive) return;
+        setSessions(s);
+        setEvals(e);
+        setError(null);
+      } catch (err) {
+        if (api.isUnauthorized(err)) return api.redirectToSignIn();
+        if (alive) setError(err instanceof Error ? err.message : "Couldn't load your dashboard.");
+      } finally {
+        if (alive) setReady(true);
+      }
     };
     load();
+    // Prototype mode: the local store broadcasts changes made in other views.
     window.addEventListener("pde:store", load);
-    return () => window.removeEventListener("pde:store", load);
+    return () => {
+      alive = false;
+      window.removeEventListener("pde:store", load);
+    };
   }, []);
 
   const completed = sessions.filter((s) => s.status === "completed");
-  const active = sessions.find((s) => s.status === "active" && s.turns.length > 1);
+  // The list endpoint doesn't ship turns, so "started" = answered at least one
+  // task (index > 0) or, locally, has more than the opening turns.
+  const active = sessions.find(
+    (s) => s.status === "active" && (s.currentTaskIndex > 0 || s.turns.length > 2)
+  );
   const careersExplored = new Set(completed.map((s) => s.careerSlug)).size;
   const skillsObserved = new Set(evals.flatMap((e) => e.observedSkills.map((k) => k.id))).size;
 
@@ -60,7 +79,15 @@ export default function Dashboard() {
           <StatTile icon={<Compass width={18} height={18} />} value={CAREERS.length} label="Careers available" />
         </div>
 
-        {!ready ? null : !hasAnything ? (
+        {error && (
+          <p role="alert" className="mt-8 rounded-2xl border border-accent/30 bg-accent-soft p-4 text-sm text-accent">
+            {error}
+          </p>
+        )}
+
+        {!ready ? (
+          <p className="mt-10 text-center text-sm text-ink-muted">Loading your results…</p>
+        ) : error ? null : !hasAnything ? (
           <EmptyState />
         ) : (
           <div className="mt-10 grid gap-8 lg:grid-cols-[1.5fr_1fr] lg:items-start">

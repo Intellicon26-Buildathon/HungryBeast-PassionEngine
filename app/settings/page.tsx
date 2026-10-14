@@ -1,22 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { resetAll } from "@/lib/store";
+import * as api from "@/lib/api";
+import { useAuth } from "@/components/AuthLayout";
 import { Shield, Check } from "@/components/icons";
 
 export default function Settings() {
   const router = useRouter();
+  const { user } = useAuth();
+  const canSaveProfile = api.backendEnabled && !!user;
+  const [displayName, setDisplayName] = useState("");
+  const [district, setDistrict] = useState("");
+  const [language, setLanguage] = useState("English");
   const [consentResearch, setConsentResearch] = useState(false);
   const [consentShare, setConsentShare] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
-  const clearData = () => {
-    resetAll();
-    setConfirming(false);
-    router.push("/dashboard");
+  useEffect(() => {
+    if (!canSaveProfile) return;
+    api
+      .getProfile()
+      .then((p) => {
+        setDisplayName(p.displayName);
+        setDistrict(p.district);
+        setLanguage(p.preferredLanguage || "English");
+        setConsentResearch(p.agreedToResearch);
+        setConsentShare(p.agreedToShare);
+      })
+      .catch((err) => setStatus({ kind: "error", text: err.message }));
+  }, [canSaveProfile]);
+
+  const save = async () => {
+    setSaving(true);
+    setStatus(null);
+    try {
+      await api.updateProfile({
+        displayName: displayName.trim() || undefined,
+        district: district.trim(),
+        preferredLanguage: language,
+        agreedToResearch: consentResearch,
+        agreedToShare: consentShare,
+      });
+      setStatus({ kind: "ok", text: "Saved." });
+    } catch (err) {
+      if (api.isUnauthorized(err)) return api.redirectToSignIn();
+      setStatus({ kind: "error", text: err instanceof Error ? err.message : "Couldn't save." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clearData = async () => {
+    try {
+      await api.clearAllData();
+      setConfirming(false);
+      router.push("/dashboard");
+    } catch (err) {
+      if (api.isUnauthorized(err)) return api.redirectToSignIn();
+      setConfirming(false);
+      setStatus({ kind: "error", text: err instanceof Error ? err.message : "Couldn't clear your data." });
+    }
   };
 
   return (
@@ -34,22 +82,34 @@ export default function Settings() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="text-sm font-medium text-ink">Display name</span>
-              <input defaultValue="Sanduni" className="input mt-1.5" />
+              <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={128} placeholder="e.g. Sanduni" className="input mt-1.5" />
             </label>
             <label className="block">
               <span className="text-sm font-medium text-ink">District (optional)</span>
-              <input defaultValue="Colombo" className="input mt-1.5" />
+              <input value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={64} placeholder="e.g. Colombo" className="input mt-1.5" />
             </label>
             <label className="block sm:col-span-2">
               <span className="text-sm font-medium text-ink">Preferred language</span>
-              <select className="input mt-1.5">
-                <option>English</option>
-                <option>සිංහල (Sinhala) — planned</option>
-                <option>தமிழ் (Tamil) — planned</option>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)} className="input mt-1.5">
+                <option value="English">English</option>
+                <option value="Sinhala">සිංහල (Sinhala) — planned</option>
+                <option value="Tamil">தமிழ் (Tamil) — planned</option>
               </select>
             </label>
           </div>
-          <button className="btn btn-primary btn-md mt-5">Save changes</button>
+          <div className="mt-5 flex items-center gap-3">
+            <button onClick={save} disabled={!canSaveProfile || saving} className="btn btn-primary btn-md">
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+            {!canSaveProfile && (
+              <span className="text-xs text-ink-faint">Sign in to save your profile and consent choices.</span>
+            )}
+            {status && (
+              <span role="status" className={`text-sm ${status.kind === "ok" ? "text-teal" : "text-accent"}`}>
+                {status.text}
+              </span>
+            )}
+          </div>
         </section>
 
         {/* Privacy */}
@@ -82,8 +142,10 @@ export default function Settings() {
         <section className="card mt-6 border-accent/30 p-6">
           <h2 className="text-sm font-bold uppercase tracking-wider text-accent">Your data</h2>
           <p className="mt-2 text-sm text-ink-muted">
-            Clear all your simulation sessions and evaluations stored on this
-            device. This cannot be undone.
+            {api.backendEnabled
+              ? "Delete all your simulation sessions, answers and evaluations from your account."
+              : "Clear all your simulation sessions and evaluations stored on this device."}{" "}
+            This cannot be undone.
           </p>
           {!confirming ? (
             <button onClick={() => setConfirming(true)} className="btn btn-outline btn-md mt-4 border-accent/40 text-accent hover:bg-accent-soft">

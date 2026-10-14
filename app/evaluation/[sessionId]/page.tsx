@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { getEvaluation } from "@/lib/store";
+import * as api from "@/lib/api";
 import type { Evaluation, SkillLevel } from "@/lib/types";
 import {
   Target, Check, ArrowRight, Shield, Bulb, Signal, Sparkle,
@@ -18,9 +18,22 @@ const LEVEL_STYLE: Record<SkillLevel, { label: string; cls: string; dots: number
 
 export default function EvaluationPage({ params }: { params: { sessionId: string } }) {
   const [ev, setEv] = useState<Evaluation | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setEv(getEvaluation(params.sessionId) ?? null);
+    let alive = true;
+    api
+      .getEvaluation(params.sessionId)
+      .then((e) => alive && setEv(e))
+      .catch((err) => {
+        if (api.isUnauthorized(err)) return api.redirectToSignIn();
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : "Couldn't load this evaluation.");
+        setEv(null);
+      });
+    return () => {
+      alive = false;
+    };
   }, [params.sessionId]);
 
   if (ev === undefined) {
@@ -37,9 +50,14 @@ export default function EvaluationPage({ params }: { params: { sessionId: string
       <>
         <SiteHeader />
         <main className="container-narrow py-20 text-center">
-          <h1 className="display text-3xl font-semibold">Evaluation not found</h1>
+          <h1 className="display text-3xl font-semibold">
+            {error ? "Couldn't load evaluation" : "Evaluation not found"}
+          </h1>
           <p className="mt-3 text-ink-muted">
-            This result may be from another device or browser.
+            {error ??
+              (api.backendEnabled
+                ? "This result doesn't exist or belongs to another account."
+                : "This result may be from another device or browser.")}
           </p>
           <Link href="/careers" className="btn btn-primary btn-lg mx-auto mt-6">
             Explore careers

@@ -111,6 +111,47 @@ export async function upsertProfile(
   };
 }
 
+/**
+ * Partial profile update — only the fields provided are written, so saving
+ * one setting never blanks the others. The row itself is created by the
+ * `on_auth_user_created` trigger at sign-up.
+ */
+export async function updateProfile(
+  userId: string,
+  input: {
+    displayName?: string;
+    district?: string;
+    preferredLanguage?: string;
+    agreedToResearch?: boolean;
+    agreedToShare?: boolean;
+  }
+): Promise<Profile> {
+  const patch: Partial<Profile> = {};
+  if (input.displayName !== undefined) patch.display_name = input.displayName;
+  if (input.district !== undefined) patch.district = input.district || null;
+  if (input.preferredLanguage !== undefined) patch.preferred_language = input.preferredLanguage;
+  if (input.agreedToResearch !== undefined) patch.agreed_to_research = input.agreedToResearch;
+  if (input.agreedToShare !== undefined) patch.agreed_to_share_results = input.agreedToShare;
+
+  const client = db();
+  const { data, error } = await client
+    .from('profiles')
+    .update(patch)
+    .eq('id', userId)
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    log.warn({ err: error, userId }, 'Failed to update profile');
+    throw new AppError('database_error', 'Unable to save profile', 500);
+  }
+  if (!data) {
+    throw new NotFoundError('Profile', userId);
+  }
+
+  return data as Profile;
+}
+
 // --- Sessions --------------------------------------------------------------
 
 export async function createSessionForUser(
@@ -217,6 +258,20 @@ export async function updateSession(
   }
 
   return data as SimulationSession;
+}
+
+/**
+ * Delete every session the user owns. Turns and evaluations go with them via
+ * `on delete cascade`. Backs the "Clear my data" control in Settings.
+ */
+export async function deleteSessionsByUser(userId: string): Promise<void> {
+  const client = db();
+  const { error } = await client.from('simulation_sessions').delete().eq('user_id', userId);
+
+  if (error) {
+    log.warn({ err: error, userId }, 'Failed to delete sessions');
+    throw new AppError('database_error', 'Unable to delete your data', 500);
+  }
 }
 
 // --- Turns -----------------------------------------------------------------

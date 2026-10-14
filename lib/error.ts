@@ -105,3 +105,16 @@ export function sanitizeError(err: unknown): { code: string; message: string; st
     statusCode: 500,
   };
 }
+
+/**
+ * Convert library errors that represent bad input into AppErrors so routes
+ * answer 400 instead of 500. Today that is Zod's schema failures.
+ */
+export function normalizeError(err: unknown): unknown {
+  if (err && typeof err === 'object' && (err as { name?: string }).name === 'ZodError') {
+    const issues = (err as { issues?: { message?: string; path?: unknown[] }[] }).issues ?? [];
+    const first = issues[0]?.message ?? 'Invalid request';
+    return new ValidationError(first, issues.map((i) => ({ path: i.path, message: i.message })));
+  }
+  return err;
+}

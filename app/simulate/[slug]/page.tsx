@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getCareer, getScenarioForCareer } from "@/lib/scenarios";
-import { createSession } from "@/lib/store";
+import * as api from "@/lib/api";
 import {
   ArrowRight, Briefcase, Target, Clock, Signal, Shield, Check,
 } from "@/components/icons";
@@ -12,6 +13,8 @@ import { notFound } from "next/navigation";
 
 export default function SimulationPrep({ params }: { params: { slug: string } }) {
   const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const career = getCareer(params.slug);
   const scenario = career ? getScenarioForCareer(career.slug) : undefined;
 
@@ -33,9 +36,17 @@ export default function SimulationPrep({ params }: { params: { slug: string } })
     );
   }
 
-  const enter = () => {
-    const session = createSession(scenario.slug, career.slug);
-    router.push(`/simulate/${career.slug}/run?session=${session.id}`);
+  const enter = async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      const session = await api.createSession(scenario.slug, career.slug);
+      router.push(`/simulate/${career.slug}/run?session=${session.id}`);
+    } catch (err) {
+      if (api.isUnauthorized(err)) return api.redirectToSignIn();
+      setError(err instanceof Error ? err.message : "Couldn't start the simulation.");
+      setStarting(false);
+    }
   };
 
   return (
@@ -119,10 +130,13 @@ export default function SimulationPrep({ params }: { params: { slug: string } })
               share sensitive personal information in your answers.
             </p>
           </div>
-          <button onClick={enter} className="btn btn-primary btn-lg shrink-0">
-            Enter the workplace <ArrowRight width={18} height={18} />
+          <button onClick={enter} disabled={starting} className="btn btn-primary btn-lg shrink-0">
+            {starting ? "Setting up…" : <>Enter the workplace <ArrowRight width={18} height={18} /></>}
           </button>
         </div>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-accent">{error}</p>
+        )}
       </main>
     </>
   );
