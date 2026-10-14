@@ -40,8 +40,8 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="mt-10 flex flex-col gap-2 border-t border-line pt-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Passion Discovery Engine · IntelliCon&apos;26 prototype</p>
-          <p>Practice &amp; reflection — not a diagnosis or a career guarantee.</p>
+          <p>© {new Date().getFullYear()} Passion Discovery Engine | IntelliCon&apos;26 prototype</p>
+          <p>Practice and reflection, not a diagnosis or a career guarantee.</p>
         </div>
       </div>
     </footer>

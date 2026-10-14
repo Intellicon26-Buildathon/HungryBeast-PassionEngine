@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "./AuthLayout";
 import * as api from "@/lib/api";
@@ -16,6 +17,7 @@ const NAV = [
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+  const pathname = usePathname();
 
   const signOut = async () => {
     try {
@@ -32,13 +34,12 @@ export function SiteHeader() {
         <Logo />
         <nav className="hidden items-center gap-1 md:flex">
           {NAV.map((n) => (
-            <Link
+            <NavLink
               key={n.href}
               href={n.href}
-              className="rounded-full px-3.5 py-2 text-sm font-medium text-ink-muted transition hover:bg-black/[0.04] hover:text-ink"
-            >
-              {n.label}
-            </Link>
+              label={n.label}
+              active={n.href !== "/#how" && (pathname === n.href || pathname.startsWith(`${n.href}/`))}
+            />
           ))}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
@@ -57,26 +58,33 @@ export function SiteHeader() {
             </Link>
           )}
           <Link href="/careers" className="btn btn-primary btn-md">
-            Start exploring
+            Explore careers
           </Link>
         </div>
         <button
           className="btn btn-ghost btn-md md:hidden"
           onClick={() => setOpen((o) => !o)}
           aria-label="Menu"
+          aria-expanded={open}
+          aria-controls="mobile-navigation"
         >
           {open ? <Close /> : <Menu />}
         </button>
       </div>
       {open && (
-        <div className="border-t border-line bg-canvas md:hidden">
+        <div id="mobile-navigation" className="border-t border-line bg-canvas md:hidden">
           <div className="container-px flex flex-col gap-1 py-3">
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-3 py-2.5 text-sm font-medium text-ink"
+                aria-current={n.href !== "/#how" && (pathname === n.href || pathname.startsWith(`${n.href}/`)) ? "page" : undefined}
+                className={`rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                  n.href !== "/#how" && (pathname === n.href || pathname.startsWith(`${n.href}/`))
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-ink hover:bg-black/[0.04]"
+                }`}
               >
                 {n.label}
               </Link>
@@ -92,12 +100,36 @@ export function SiteHeader() {
                 </Link>
               )}
               <Link href="/careers" className="btn btn-primary btn-md flex-1" onClick={() => setOpen(false)}>
-                Start
+                Explore careers
               </Link>
             </div>
           </div>
         </div>
       )}
     </header>
+  );
+}
+
+function NavLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${
+        active
+          ? "bg-brand-50 text-brand-700"
+          : "text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }

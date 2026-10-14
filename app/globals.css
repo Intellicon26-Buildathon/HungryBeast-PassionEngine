@@ -47,8 +47,8 @@
 
   /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full font-semibold transition
-      disabled:cursor-not-allowed disabled:opacity-55 select-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-semibold transition duration-200
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 select-none;
   }
   .btn-lg { @apply h-12 px-6 text-[0.95rem]; }
   .btn-md { @apply h-10 px-4 text-sm; }
@@ -59,8 +59,8 @@
       hover:bg-brand-600 active:translate-y-px;
   }
   .btn-accent {
-    @apply btn bg-accent text-white shadow-[0_8px_24px_-12px_rgba(255,107,74,0.75)]
-      hover:brightness-[1.04] active:translate-y-px;
+    @apply btn bg-brand-500 text-white shadow-[0_8px_24px_-12px_rgba(90,63,240,0.7)]
+      hover:bg-brand-600;
   }
   .btn-ghost {
     @apply btn bg-transparent text-ink hover:bg-black/[0.045];
@@ -113,6 +113,17 @@
   background-image:
     radial-gradient(circle at 1px 1px, rgba(20,22,28,0.055) 1px, transparent 0);
   background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media print {

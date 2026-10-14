@@ -33,8 +33,8 @@ export default async function CareerDetail({ params }: { params: Promise<{ slug:
                 {career.area}
               </p>
               {career.available ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-soft px-2.5 py-1 text-[0.68rem] font-bold uppercase tracking-wide text-teal">
-                  <span className="h-1.5 w-1.5 rounded-full bg-teal animate-pulse-dot" /> Live simulation
+                <span className="rounded-md bg-brand-50 px-2.5 py-1 text-[0.68rem] font-semibold text-brand-700">
+                  Playable simulation
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/[0.05] px-2.5 py-1 text-[0.68rem] font-semibold text-ink-faint">
