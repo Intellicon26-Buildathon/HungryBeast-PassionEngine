@@ -1,4 +1,4 @@
-import { aiConfig } from '../config';
+import { aiConfig, DEFAULT_AI_MODEL } from '../config';
 import { ConfigurationError, ExternalServiceError } from '../error';
 import { logger } from '../logger';
 
@@ -90,8 +90,12 @@ interface GeminiGenerateContentResponse {
   promptFeedback?: { blockReason?: string };
 }
 
-async function callGeminiOnce(req: ManagerReplyRequest, signal: AbortSignal): Promise<string> {
-  const url = `${GEMINI_BASE_URL}/${encodeURIComponent(aiConfig.model)}:generateContent`;
+async function callGeminiOnce(
+  req: ManagerReplyRequest,
+  signal: AbortSignal,
+  model: string
+): Promise<string> {
+  const url = `${GEMINI_BASE_URL}/${encodeURIComponent(model)}:generateContent`;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -114,7 +118,7 @@ async function callGeminiOnce(req: ManagerReplyRequest, signal: AbortSignal): Pr
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     log.warn(
-      { status: res.status, model: aiConfig.model, detail: detail.slice(0, 300) },
+      { status: res.status, model, detail: detail.slice(0, 300) },
       'Gemini request failed'
     );
     // 429/5xx are retryable provider failures; 4xx are permanent.
@@ -130,13 +134,13 @@ async function callGeminiOnce(req: ManagerReplyRequest, signal: AbortSignal): Pr
       );
     }
     const publicMessage = res.status === 404
-      ? `Gemini model "${aiConfig.model}" was not found. Check AI_MODEL in your environment settings.`
+      ? `Gemini model "${model}" was not found. Check AI_MODEL in your environment settings.`
       : res.status === 401 || res.status === 403
       ? 'Gemini denied access. Check that GEMINI_API_KEY is valid and the Gemini API is enabled for its project.'
       : 'Gemini rejected the request. Check AI_MODEL and the server-side Gemini configuration.';
     throw new ExternalServiceError(
       'gemini',
-      `Provider rejected request (${res.status})`,
+      res.status === 404 ? `Gemini model not found: ${model}` : `Provider rejected request (${res.status})`,
       502,
       publicMessage,
       false
@@ -162,23 +166,43 @@ export async function generateManagerReplyViaGemini(req: ManagerReplyRequest): P
     throw new ConfigurationError('GEMINI_API_KEY is not set; the AI gateway is disabled.');
   }
 
-  const attempts = 2;
+  const models = aiConfig.model === DEFAULT_AI_MODEL
+    ? [aiConfig.model]
+    : [aiConfig.model, DEFAULT_AI_MODEL];
   let lastError: unknown;
+  let shouldTryFallback = false;
 
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    try {
-      return await callGeminiOnce(req, AbortSignal.timeout(aiConfig.timeoutMs));
-    } catch (err) {
-      lastError = err;
-      // Only retry genuine, transient provider failures.
-      const retryable =
-        (err instanceof ExternalServiceError && err.retryable) ||
-        (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError'));
-      if (!retryable || attempt === attempts - 1) break;
-      const delay = 500 * (attempt + 1) + Math.random() * 250;
-      log.warn({ attempt, delayMs: Math.round(delay) }, 'Gemini call failed; retrying');
-      await new Promise((r) => setTimeout(r, delay));
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await callGeminiOnce(req, AbortSignal.timeout(aiConfig.timeoutMs), model);
+      } catch (err) {
+        lastError = err;
+        if (
+          err instanceof ExternalServiceError &&
+          err.message.startsWith('Gemini model not found:') &&
+          model !== DEFAULT_AI_MODEL
+        ) {
+          shouldTryFallback = true;
+          log.warn(
+            { configuredModel: model, fallbackModel: DEFAULT_AI_MODEL },
+            'Configured Gemini model was not found; trying the supported default'
+          );
+          break;
+        }
+
+        // Only retry genuine, transient provider failures.
+        const retryable =
+          (err instanceof ExternalServiceError && err.retryable) ||
+          (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError'));
+        if (!retryable || attempt === 1) break;
+        const delay = 500 * (attempt + 1) + Math.random() * 250;
+        log.warn({ attempt, model, delayMs: Math.round(delay) }, 'Gemini call failed; retrying');
+        await new Promise((r) => setTimeout(r, delay));
+      }
     }
+    if (!shouldTryFallback) break;
+    shouldTryFallback = false;
   }
 
   throw lastError instanceof Error
