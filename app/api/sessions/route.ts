@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
-import { createSessionForUser, listSessionsByUser } from '@/lib/db';
+import { createSessionForUser, listSessionsByUser, deleteSessionsByUser } from '@/lib/db';
+import { toClientSession } from '@/lib/db/mappers';
 import { createSessionSchema, listSessionsSchema } from '@/lib/validation';
 import { getScenario } from '@/lib/scenarios';
 import { logger } from '@/lib/logger';
-import { NotFoundError, ValidationError, ForbiddenError, AppError, sanitizeError } from '@/lib/error';
+import { NotFoundError, ValidationError, ForbiddenError, AppError, sanitizeError, normalizeError } from '@/lib/error';
 
 const log = logger;
 
@@ -22,18 +23,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      sessions: sessions.map((s) => ({
-        id: s.id,
-        scenarioSlug: s.scenario_slug,
-        careerSlug: s.career_slug,
-        status: s.status,
-        currentTaskIndex: s.current_task_index,
-        turns: [],
-        startedAt: s.started_at,
-        completedAt: s.completed_at,
-      })),
+      sessions: sessions.map((s) => toClientSession(s)),
     });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }
@@ -64,18 +57,27 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      session: {
-        id: session.id,
-        scenarioSlug: session.scenario_slug,
-        careerSlug: session.career_slug,
-        status: session.status,
-        currentTaskIndex: session.current_task_index,
-        turns: [],
-        startedAt: session.started_at,
-        completedAt: session.completed_at,
-      },
+      session: toClientSession(session),
     });
   } catch (err) {
+    err = normalizeError(err);
+    if (err instanceof AppError) {
+      return NextResponse.json(err.toJSON(), { status: err.statusCode });
+    }
+    logError(err);
+    return NextResponse.json(sanitizeError(err), { status: 500 });
+  }
+}
+
+/** Delete all of the caller's sessions (turns + evaluations cascade). */
+export async function DELETE() {
+  try {
+    const user = await requireUser();
+    await deleteSessionsByUser(user.id);
+    log.info({ userId: user.id }, 'User cleared their sessions');
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }

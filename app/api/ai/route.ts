@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/rate-limit';
-import { getSessionById, listTurnsBySession } from '@/lib/db';
+import { getSessionById, listTurnsBySession, addTurnToSession } from '@/lib/db';
+import { toClientTurn } from '@/lib/db/mappers';
 import { generateManagerReply } from '@/lib/mockAI';
 import { generateManagerReplyViaGemini } from '@/lib/ai/gemini';
 import { getScenario } from '@/lib/scenarios';
 import { logger } from '@/lib/logger';
-import { NotFoundError, AppError, ValidationError, sanitizeError } from '@/lib/error';
+import { NotFoundError, AppError, ValidationError, sanitizeError, normalizeError } from '@/lib/error';
 
 const log = logger;
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Session must exist and belong to the caller.
-    const session = await getSessionById(user.id, input.sessionId);
+    await getSessionById(user.id, input.sessionId);
 
     // The latest student answer from persisted history wins over what the
     // client claims, so replies always respond to stored evidence.
@@ -122,8 +123,18 @@ export async function POST(req: NextRequest) {
       reply = generateManagerReply(scenario, task, lastAnswer, turns.length);
     }
 
-    return NextResponse.json({ ok: true, reply });
+    // Persist the reply server-side so the transcript is the source of truth
+    // and the client can never forge what the manager said.
+    const saved = await addTurnToSession(user.id, {
+      sessionId: input.sessionId,
+      speaker: 'manager',
+      content: reply,
+      taskId: task.id,
+    });
+
+    return NextResponse.json({ ok: true, reply, turn: toClientTurn(saved, turns.length) });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }

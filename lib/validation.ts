@@ -57,7 +57,7 @@ export const createSessionSchema = z.object({
 export const addTurnSchema = z.object({
   sessionId: z.string().min(1, 'Session id is required'),
   speaker: z.enum(['manager', 'student', 'system']),
-  content: z.string().min(1, 'Response cannot be empty'),
+  content: z.string().trim().min(1, 'Response cannot be empty').max(6000, 'Response is too long'),
   taskId: z.string().optional(),
 });
 
@@ -66,13 +66,34 @@ export const completeSessionSchema = z.object({
   finalAnswer: z.string().optional(),
 });
 
+/** PATCH /api/sessions/[id] — advance the task pointer and/or change status. */
+export const updateSessionSchema = z
+  .object({
+    currentTaskIndex: z.number().int().min(0).max(50).optional(),
+    status: z.enum(['active', 'completed', 'abandoned']).optional(),
+  })
+  .refine((v) => v.currentTaskIndex !== undefined || v.status !== undefined, {
+    message: 'Nothing to update',
+  });
+
+export const updateProfileSchema = z.object({
+  displayName: z.string().trim().min(1).max(128).optional(),
+  district: z.string().trim().max(64).optional(),
+  preferredLanguage: z.string().trim().max(32).optional(),
+  agreedToResearch: z.boolean().optional(),
+  agreedToShare: z.boolean().optional(),
+});
+
 export const listSessionsSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
 });
 
+// Session ids are Postgres uuids. Rejecting anything else up front turns a
+// stale/foreign id (e.g. an old browser-local "sess_…" id) into a clean 400
+// instead of a database error.
 export const getSessionSchema = z.object({
-  sessionId: z.string().min(1, 'Session id is required'),
+  sessionId: z.string().uuid('Invalid session id'),
 });
 
 export const listEvaluationsSchema = z.object({
@@ -81,7 +102,7 @@ export const listEvaluationsSchema = z.object({
 });
 
 export const getEvaluationSchema = z.object({
-  sessionId: z.string().min(1, 'Session id is required'),
+  sessionId: z.string().uuid('Invalid session id'),
 });
 
 // --- Admin/mentor future-proofing -----------------------------------------

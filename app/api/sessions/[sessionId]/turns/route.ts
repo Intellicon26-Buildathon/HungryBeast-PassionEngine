@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { addTurnToSession, listTurnsBySession, getSessionById } from '@/lib/db';
 import { addTurnSchema } from '@/lib/validation';
+import { toClientTurn } from '@/lib/db/mappers';
 import { logger } from '@/lib/logger';
-import { NotFoundError, ValidationError, ForbiddenError, AppError, sanitizeError } from '@/lib/error';
+import { NotFoundError, ValidationError, ForbiddenError, AppError, sanitizeError, normalizeError } from '@/lib/error';
 
 const log = logger;
 
@@ -20,20 +21,9 @@ export async function GET(
     await getSessionById(user.id, sessionId);
     const turns = await listTurnsBySession(user.id, sessionId);
 
-    // `index` is the ordinal position of the turn (Turn.index is a number);
-    // `at` is epoch millis to match the client's Turn shape.
-    return NextResponse.json({
-      ok: true,
-      turns: turns.map((t, i) => ({
-        id: t.id,
-        index: i,
-        speaker: t.speaker,
-        content: t.content,
-        taskId: t.task_id,
-        at: Date.parse(t.created_at) || 0,
-      })),
-    });
+    return NextResponse.json({ ok: true, turns: turns.map(toClientTurn) });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }
@@ -54,27 +44,23 @@ export async function POST(
     await getSessionById(user.id, sessionId);
 
     const body = await request.json().catch(() => ({}));
-    const input = addTurnSchema.parse(body);
+    const input = addTurnSchema.parse({ ...body, sessionId });
 
     const turn = await addTurnToSession(user.id, {
       ...input,
       sessionId,
     });
+    // Ordinal position = how many turns precede it.
+    const index = (await listTurnsBySession(user.id, sessionId)).length - 1;
 
     log.info({ userId: user.id, sessionId, turnId: turn.id, speaker: turn.speaker }, 'Turn saved');
 
     return NextResponse.json({
       ok: true,
-      turn: {
-        id: turn.id,
-        index: Number(turn.created_at) || 0,
-        speaker: turn.speaker,
-        content: turn.content,
-        taskId: turn.task_id,
-        at: Date.parse(turn.created_at) || 0,
-      },
+      turn: toClientTurn(turn, index),
     });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }

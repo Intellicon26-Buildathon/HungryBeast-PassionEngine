@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSupabaseRouteClient } from '@/lib/supabase/server';
 import { signUpSchema } from '@/lib/validation';
-import { upsertProfile } from '@/lib/db';
+import { appOrigin } from '@/lib/config';
 import { logger } from '@/lib/logger';
-import { ValidationError, AppError, sanitizeError } from '@/lib/error';
+import { ValidationError, AppError, sanitizeError, normalizeError } from '@/lib/error';
 
 const log = logger;
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       email: input.email,
       password: input.password,
       options: {
-        emailRedirectTo: process.env.NEXT_PUBLIC_API_BASE_URL + '/auth/callback',
+        emailRedirectTo: `${appOrigin}/auth/callback`,
         data: {
           display_name: input.displayName,
         },
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
+      log.warn({ code: error.code, status: error.status, msg: error.message }, 'Supabase sign-up error');
       // Map common Supabase auth errors into app errors.
       if (error.code === 'email_exists') {
         throw new ValidationError('An account with this email already exists.');
@@ -37,6 +38,10 @@ export async function POST(req: NextRequest) {
       if (error.code === 'invalid_email') {
         throw new ValidationError('Enter a valid email address.');
       }
+      // Supabase 4xx messages are user-facing (rate limits, signups disabled…).
+      if (error.status && error.status >= 400 && error.status < 500) {
+        throw new ValidationError(error.message);
+      }
       throw new AppError('auth_error', 'Unable to create account', 500, 'Could not create your account right now.');
     }
 
@@ -44,14 +49,9 @@ export async function POST(req: NextRequest) {
       throw new AppError('auth_error', 'Account created without user data', 500, 'Something went wrong creating your account.');
     }
 
-    // Create or update the profile row so the product has a stable user record.
-    try {
-      await upsertProfile(data.user.id, {
-        displayName: input.displayName,
-      });
-    } catch (profileErr) {
-      log.warn({ err: profileErr, userId: data.user.id }, 'Profile creation failed; account was still created');
-    }
+    // The profile row is created by the `on_auth_user_created` DB trigger
+    // (display_name comes from the user metadata above). Writing it from here
+    // would fail RLS whenever email confirmation means there is no session yet.
 
     log.info({ userId: data.user.id, email: input.email }, 'User signed up');
 
@@ -61,9 +61,11 @@ export async function POST(req: NextRequest) {
         id: data.user.id,
         email: data.user.email,
       },
-      requiresConfirmation: data.session !== null,
+      // No session back from signUp ⇒ Supabase is waiting on email confirmation.
+      requiresConfirmation: data.session === null,
     });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { Check } from "./icons";
+import { supabasePublicConfigured } from "@/lib/config";
 
 export function AuthShell({
   title,
@@ -24,8 +25,9 @@ export function AuthShell({
           </div>
         </div>
         <p className="text-xs text-ink-faint">
-          Prototype sign-in — no real account is created. In production this uses
-          Supabase Auth.
+          {supabasePublicConfigured
+            ? "Secured by Supabase Auth. Your answers stay private to your account."
+            : "Prototype mode — accounts are disabled until Supabase is configured."}
         </p>
       </div>
 

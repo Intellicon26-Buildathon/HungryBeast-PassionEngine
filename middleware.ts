@@ -8,9 +8,15 @@ import { createServerClient } from '@supabase/ssr';
 // cookies stay fresh (standard @supabase/ssr pattern). When Supabase is not
 // configured (prototype mode) this is a pass-through.
 //
+// Pages that read or write a user's data (PROTECTED_PATHS) redirect to
+// /signin when there is no user. That is a UX convenience only — the real
+// authorization still happens in the API routes and Postgres RLS.
+//
 // Response security headers live in next.config.mjs so they also cover static
 // assets and do not depend on middleware execution.
 // ---------------------------------------------------------------------------
+
+const PROTECTED_PATHS = ['/dashboard', '/simulate', '/evaluation', '/settings', '/onboarding'];
 
 export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,12 +43,21 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Refreshes the auth cookie when close to expiry. Never gate pages here —
-  // authorization stays in the API routes / RLS.
+  // Refreshes the auth cookie when close to expiry.
+  let signedIn = true;
   try {
-    await supabase.auth.getUser();
+    const { data } = await supabase.auth.getUser();
+    signedIn = !!data.user;
   } catch {
     // Network hiccup: keep serving; route handlers validate the JWT anyway.
+  }
+
+  const { pathname, search } = request.nextUrl;
+  if (!signedIn && PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+    const to = request.nextUrl.clone();
+    to.pathname = '/signin';
+    to.search = `?next=${encodeURIComponent(pathname + search)}`;
+    return NextResponse.redirect(to);
   }
 
   return response;

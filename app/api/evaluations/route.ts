@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { listEvaluationsByUser } from '@/lib/db';
+import { toClientEvaluation } from '@/lib/db/mappers';
 import { logger } from '@/lib/logger';
-import { AppError, sanitizeError } from '@/lib/error';
+import { AppError, sanitizeError, normalizeError } from '@/lib/error';
 
 const log = logger;
 
@@ -20,19 +21,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      evaluations: evals.map((e) => ({
-        sessionId: e.session_id,
-        scenarioSlug: e.scenario_slug,
-        careerTitle: e.career_title,
-        summary: e.summary,
-        strengths: e.strengths,
-        improvements: e.improvements,
-        nextSteps: e.next_steps,
-        limitations: e.limitations,
-        createdAt: e.created_at,
-      })),
+      evaluations: evals.map(toClientEvaluation),
     });
   } catch (err) {
+    err = normalizeError(err);
     if (err instanceof AppError) {
       return NextResponse.json(err.toJSON(), { status: err.statusCode });
     }

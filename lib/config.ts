@@ -64,7 +64,14 @@ const serverEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
-export const publicEnv = publicEnvSchema.parse(process.env);
+// Each NEXT_PUBLIC_* var must be referenced literally: Next.js only inlines
+// `process.env.NEXT_PUBLIC_X` expressions into the browser bundle. Passing the
+// whole `process.env` object would leave every value empty in the browser.
+export const publicEnv = publicEnvSchema.parse({
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+});
 export const serverEnv = serverEnvSchema.parse(process.env);
 
 // ---------------------------------------------------------------------------
