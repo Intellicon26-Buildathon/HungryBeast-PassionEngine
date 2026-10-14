@@ -29,10 +29,10 @@ import { AppError, ConfigurationError, UnauthorizedError } from '../error';
  * Returns null when Supabase is not configured (prototype mode) so callers
  * can fail with an honest error instead of a crash.
  */
-export function getSupabaseRouteClient(): SupabaseClient | null {
+export async function getSupabaseRouteClient(): Promise<SupabaseClient | null> {
   if (!supabasePublicConfigured) return null;
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
@@ -61,8 +61,8 @@ export function getSupabaseRouteClient(): SupabaseClient | null {
  * Route client for endpoints that cannot work without Supabase.
  * Throws an honest 503 when the backend is not configured.
  */
-export function requireSupabaseRouteClient(): SupabaseClient {
-  const client = getSupabaseRouteClient();
+export async function requireSupabaseRouteClient(): Promise<SupabaseClient> {
+  const client = await getSupabaseRouteClient();
   if (!client) {
     throw new AppError(
       'configuration_error',
@@ -121,7 +121,7 @@ export interface AuthUser {
  * The JWT is validated by Supabase Auth on every call.
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const client = getSupabaseRouteClient();
+  const client = await getSupabaseRouteClient();
   if (!client) return null;
 
   const { data, error } = await client.auth.getUser();
@@ -136,9 +136,14 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  * is not configured (there cannot be a user without it).
  */
 export async function requireUser(): Promise<AuthUser> {
-  const client = getSupabaseRouteClient();
+  const client = await getSupabaseRouteClient();
   if (!client) {
-    throw new UnauthorizedError('Authentication is not configured on this server.');
+    throw new AppError(
+      'configuration_error',
+      'Supabase authentication is not configured on this server',
+      503,
+      'Authentication is temporarily unavailable.'
+    );
   }
 
   const { data, error } = await client.auth.getUser();

@@ -6,8 +6,17 @@ import { toClientTurn } from '@/lib/db/mappers';
 import { generateManagerReply } from '@/lib/mockAI';
 import { generateManagerReplyViaGemini } from '@/lib/ai/gemini';
 import { getScenario } from '@/lib/scenarios';
+import { serverEnv } from '@/lib/config';
 import { logger } from '@/lib/logger';
-import { NotFoundError, AppError, ValidationError, sanitizeError, normalizeError } from '@/lib/error';
+import {
+  NotFoundError,
+  AppError,
+  ConfigurationError,
+  ValidationError,
+  sanitizeError,
+  normalizeError,
+} from '@/lib/error';
+import { aiConfig } from '@/lib/config';
 
 const log = logger;
 
@@ -21,8 +30,8 @@ export const maxDuration = 30;
 //   1. Authenticate (JWT from auth cookies).
 //   2. Validate the request against the known scenario + session.
 //   3. Rate-limit (Upstash) — before any paid model call.
-//   4. Call Gemini via the bounded gateway; on any failure fall back to the
-//      deterministic mock so an in-progress session never breaks.
+//   4. Call Gemini via the bounded gateway; only development may use a
+//      deterministic fallback so production never returns mock AI content.
 // The AI provider key never leaves the server.
 // ---------------------------------------------------------------------------
 
@@ -40,7 +49,6 @@ interface AiReplyRequest {
   sessionId: string;
   scenarioSlug: string;
   taskId?: string;
-  lastStudentAnswer?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -52,33 +60,39 @@ export async function POST(req: NextRequest) {
       sessionId: typeof body.sessionId === 'string' ? body.sessionId : '',
       scenarioSlug: typeof body.scenarioSlug === 'string' ? body.scenarioSlug : '',
       taskId: typeof body.taskId === 'string' ? body.taskId : undefined,
-      lastStudentAnswer:
-        typeof body.lastStudentAnswer === 'string' ? body.lastStudentAnswer : undefined,
     };
 
     if (!input.sessionId || !input.scenarioSlug) {
       throw new ValidationError('sessionId and scenarioSlug are required');
     }
 
-    const scenario = getScenario(input.scenarioSlug);
-    if (!scenario) {
-      throw new NotFoundError('Scenario', input.scenarioSlug);
+    // Session must exist and belong to the caller.
+    const session = await getSessionById(user.id, input.sessionId);
+    if (session.scenario_slug !== input.scenarioSlug) {
+      throw new ValidationError('The requested simulation does not match this session.');
     }
 
-    // Session must exist and belong to the caller.
-    await getSessionById(user.id, input.sessionId);
+    const scenario = getScenario(session.scenario_slug);
+    if (!scenario) {
+      throw new NotFoundError('Scenario', session.scenario_slug);
+    }
 
     // The latest student answer from persisted history wins over what the
     // client claims, so replies always respond to stored evidence.
     const turns = await listTurnsBySession(user.id, input.sessionId);
     const studentTurns = turns.filter((t) => t.speaker === 'student');
-    const lastAnswer =
-      studentTurns.length > 0
-        ? studentTurns[studentTurns.length - 1].content
-        : (input.lastStudentAnswer ?? '');
+    const lastAnswer = studentTurns[studentTurns.length - 1]?.content ?? '';
 
     if (!lastAnswer.trim()) {
-      throw new ValidationError('No student answer to respond to.');
+      throw new ValidationError('Save an answer before requesting a manager reply.');
+    }
+
+    const task = scenario.tasks[session.current_task_index];
+    if (!task) {
+      throw new ValidationError('The current task is not available for this simulation.');
+    }
+    if (input.taskId && input.taskId !== task.id) {
+      throw new ValidationError('The requested task does not match the current simulation task.');
     }
 
     // Rate limiting happens before any AI work.
@@ -96,8 +110,6 @@ export async function POST(req: NextRequest) {
       AI_PER_USER_WINDOW_SECONDS,
       'You are sending AI requests too quickly. Please slow down.'
     );
-
-    const task = findTaskForTurn(scenario, input.taskId);
 
     let reply: string;
     try {
@@ -118,8 +130,21 @@ export async function POST(req: NextRequest) {
     } catch (aiErr) {
       log.warn(
         { err: aiErr, userId: user.id, sessionId: input.sessionId },
-        'AI provider failed; using deterministic fallback'
+        'AI provider failed'
       );
+      if (serverEnv.NODE_ENV === 'production' || aiConfig.enabled) {
+        const publicMessage = aiErr instanceof ConfigurationError
+          ? 'Gemini is not configured. Add GEMINI_API_KEY to the server environment.'
+          : aiErr instanceof AppError && aiErr.publicMessage
+          ? aiErr.publicMessage
+          : 'Gemini could not complete this reply. Check the server logs and try again.';
+        throw new AppError(
+          'ai_unavailable',
+          'AI manager reply generation failed',
+          503,
+          `${publicMessage} Your saved answer is safe.`
+        );
+      }
       reply = generateManagerReply(scenario, task, lastAnswer, turns.length);
     }
 
@@ -141,15 +166,4 @@ export async function POST(req: NextRequest) {
     log.error({ err }, 'AI route failed');
     return NextResponse.json(sanitizeError(err), { status: 500 });
   }
-}
-
-function findTaskForTurn(
-  scenario: NonNullable<ReturnType<typeof getScenario>>,
-  taskId?: string
-): NonNullable<ReturnType<typeof getScenario>>['tasks'][number] {
-  if (taskId) {
-    const t = scenario.tasks.find((task) => task.id === taskId);
-    if (t) return t;
-  }
-  return scenario.tasks[0];
 }

@@ -62,10 +62,16 @@ describe("generateManagerReplyViaGemini", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(String(init.body)).not.toContain("test-key");
-    expect(String(init.headers ? JSON.stringify(init.headers) : "")).not.toContain("test-key");
+    expect(String(init.headers ? JSON.stringify(init.headers) : "")).toContain("test-key");
     const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain("key=test-key");
+    expect(url).not.toContain("test-key");
     expect(url).toContain("gemini-test");
+    const payload = JSON.parse(String(init.body)) as {
+      contents: { role: string; parts: { text: string }[] }[];
+    };
+    expect(
+      payload.contents.flatMap((content) => content.parts).filter((part) => part.text === baseRequest.studentAnswer)
+    ).toHaveLength(1);
   });
 
   it("retries once on a provider 500 and then succeeds", async () => {

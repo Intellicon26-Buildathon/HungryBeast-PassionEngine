@@ -55,7 +55,7 @@ const serverEnvSchema = z.object({
   // AI provider — all AI calls happen server-side only.
   AI_PROVIDER: z.enum(['gemini']).default('gemini'),
   GEMINI_API_KEY: optionalSecret,
-  AI_MODEL: z.string().default('gemini-2.0-flash'),
+  AI_MODEL: z.string().default('gemini-2.5-flash'),
   AI_TIMEOUT_MS: intVar(20_000, 1_000, 120_000),
   AI_MAX_OUTPUT_TOKENS: intVar(700, 64, 8_192),
 

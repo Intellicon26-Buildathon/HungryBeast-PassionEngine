@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const input = emailChangeRequestSchema.parse(body);
 
-    const client = requireSupabaseRouteClient();
+    const client = await requireSupabaseRouteClient();
 
     const { error } = await client.auth.updateUser({
       email: input.newEmail,

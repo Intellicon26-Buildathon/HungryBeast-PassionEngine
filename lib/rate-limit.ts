@@ -1,7 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { rateLimitEnabled, serverEnv } from './config';
-import { ConfigurationError, RateLimitedError } from './error';
+import { AppError, ConfigurationError, RateLimitedError } from './error';
 import { logger } from './logger';
 
 // ---------------------------------------------------------------------------
@@ -20,7 +20,14 @@ const log = logger;
 
 function redisClient() {
   if (!serverEnv.UPSTASH_REDIS_REST_URL || !serverEnv.UPSTASH_REDIS_REST_TOKEN) {
-    // Only throw when rate limiting is actually enabled.
+    if (serverEnv.NODE_ENV === 'production') {
+      throw new AppError(
+        'configuration_error',
+        'Upstash Redis must be configured in production',
+        503,
+        'The AI service is temporarily unavailable.'
+      );
+    }
     if (rateLimitEnabled) {
       throw new ConfigurationError(
         'Upstash Redis config is incomplete. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN when rate limiting is enabled.'
@@ -38,9 +45,7 @@ function redisClient() {
 function ratelimitInstance(points: number, windowSeconds: number) {
   const redis = redisClient();
   if (!redis || !rateLimitEnabled) {
-    // When rate limiting is disabled, allow everything. This keeps startup and
-    // tests working without Redis while still letting the rest of the backend
-    // run in production-ready mode.
+    // Development remains usable without provisioning Redis.
     return null;
   }
 
@@ -76,8 +81,15 @@ export async function checkRateLimit(
       resetAt: result.reset,
     };
   } catch (err) {
-    // Fail open if Redis is unreachable, but log loudly in production.
-    log.warn({ err, key, scope }, 'Rate limit check failed; failing open');
+    log.error({ err, key, scope }, 'Rate limit check failed');
+    if (serverEnv.NODE_ENV === 'production') {
+      throw new AppError(
+        'rate_limit_unavailable',
+        'Upstash rate-limit check failed',
+        503,
+        'The AI service is temporarily unavailable. Please try again shortly.'
+      );
+    }
     return { allowed: true, remaining: points, resetAt: null };
   }
 }

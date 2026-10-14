@@ -33,8 +33,8 @@ const log = logger;
  * Throws a clear configuration error when Supabase is not set up rather than
  * failing with an opaque `undefined` access.
  */
-function db() {
-  const client = getSupabaseRouteClient();
+async function db() {
+  const client = await getSupabaseRouteClient();
   if (!client) {
     throw new AppError(
       'configuration_error',
@@ -49,7 +49,7 @@ function db() {
 // --- Profiles --------------------------------------------------------------
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('profiles')
     .select('*')
@@ -74,7 +74,7 @@ export async function upsertProfile(
     agreedToShare?: boolean;
   }
 ): Promise<Profile> {
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('profiles')
     .upsert(
@@ -133,7 +133,7 @@ export async function updateProfile(
   if (input.agreedToResearch !== undefined) patch.agreed_to_research = input.agreedToResearch;
   if (input.agreedToShare !== undefined) patch.agreed_to_share_results = input.agreedToShare;
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('profiles')
     .update(patch)
@@ -160,7 +160,7 @@ export async function createSessionForUser(
 ): Promise<SimulationSession> {
   const body = createSessionSchema.parse(input);
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('simulation_sessions')
     .insert({
@@ -190,7 +190,7 @@ export async function getSessionById(
 ): Promise<SimulationSession> {
   const body = getSessionSchema.parse({ sessionId });
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('simulation_sessions')
     .select()
@@ -216,7 +216,7 @@ export async function listSessionsByUser(
 ): Promise<SimulationSession[]> {
   const body = listSessionsSchema.parse(input);
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('simulation_sessions')
     .select()
@@ -239,7 +239,7 @@ export async function updateSession(
 ): Promise<SimulationSession> {
   await getSessionById(userId, sessionId);
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('simulation_sessions')
     .update(updates as Partial<SimulationSession>)
@@ -265,7 +265,7 @@ export async function updateSession(
  * `on delete cascade`. Backs the "Clear my data" control in Settings.
  */
 export async function deleteSessionsByUser(userId: string): Promise<void> {
-  const client = db();
+  const client = await db();
   const { error } = await client.from('simulation_sessions').delete().eq('user_id', userId);
 
   if (error) {
@@ -284,7 +284,7 @@ export async function addTurnToSession(
 
   await getSessionById(userId, body.sessionId);
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('simulation_turns')
     .insert({
@@ -311,7 +311,7 @@ export async function listTurnsBySession(
 ): Promise<SimulationTurn[]> {
   await getSessionById(userId, sessionId);
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('simulation_turns')
     .select()
@@ -337,7 +337,7 @@ export async function saveEvaluationForSession(
 
   // The user's own cookie-bound client — RLS is the second line of defence
   // behind the ownership check above, never the service role.
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('session_evaluations')
     .insert({
@@ -371,7 +371,7 @@ export async function getEvaluationBySession(
 ): Promise<SessionEvaluation | null> {
   const body = getEvaluationSchema.parse({ sessionId });
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('session_evaluations')
     .select()
@@ -392,7 +392,7 @@ export async function listEvaluationsByUser(
 ): Promise<SessionEvaluation[]> {
   const body = listEvaluationsSchema.parse(input);
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('session_evaluations')
     .select()
@@ -422,7 +422,7 @@ export async function getUserProfileById(adminUserId: string, targetUserId: stri
     throw new ForbiddenError('Only admins can look up other user profiles.');
   }
 
-  const client = db();
+  const client = await db();
   const { data, error } = await client
     .from('profiles')
     .select()

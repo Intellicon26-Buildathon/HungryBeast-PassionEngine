@@ -13,7 +13,7 @@ export interface Career {
   difficulty: Difficulty;
   skills: string[];
   accent: "brand" | "teal" | "accent" | "amber";
-  available: boolean; // only the PM sim is fully functional for Gate 2
+  available: boolean;
 }
 
 export interface ScenarioTask {
@@ -33,6 +33,7 @@ export interface RubricCriterion {
   label: string;
   maxScore: number;
   anchors: string[]; // written anchors for transparency
+  taskIds?: string[];
 }
 
 export interface Scenario {
@@ -47,8 +48,12 @@ export interface Scenario {
   context: string;
   tasks: ScenarioTask[];
   rubric: RubricCriterion[];
-  skills: { id: string; name: string }[];
+  skills: { id: string; name: string; criterionId?: string }[];
   turnLimit: number;
+  typicalWorkday?: string;
+  deliverables?: string[];
+  collaborators?: string[];
+  tradeoffs?: string[];
 }
 
 export type Speaker = "manager" | "student" | "system";

@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/supabase/server';
 import { createSessionForUser, listSessionsByUser, deleteSessionsByUser } from '@/lib/db';
 import { toClientSession } from '@/lib/db/mappers';
 import { createSessionSchema, listSessionsSchema } from '@/lib/validation';
-import { getScenario } from '@/lib/scenarios';
+import { getCareer, getScenario } from '@/lib/scenarios';
 import { logger } from '@/lib/logger';
 import { NotFoundError, ValidationError, ForbiddenError, AppError, sanitizeError, normalizeError } from '@/lib/error';
 
@@ -43,13 +43,10 @@ export async function POST(req: NextRequest) {
     const input = createSessionSchema.parse(body);
 
     const scenario = getScenario(input.scenarioSlug);
-    if (!scenario) {
+    const career = getCareer(input.careerSlug);
+    if (!scenario || !career?.available || scenario.careerSlug !== career.slug) {
       throw new NotFoundError('Simulation', input.scenarioSlug);
     }
-
-    // Future quota gate: per-user daily simulation limit.
-    // For now this is a placeholder that can be tightened at pilot.
-    await checkSimulationQuota(user.id);
 
     const session = await createSessionForUser(user, input);
 
@@ -84,13 +81,6 @@ export async function DELETE() {
     logError(err);
     return NextResponse.json(sanitizeError(err), { status: 500 });
   }
-}
-
-async function checkSimulationQuota(userId: string) {
-  // Placeholder for the per-user daily simulation quota.
-  // During beta this should be generous or disabled; at public pilot it becomes
-  // the 5 simulations/day rule described in the spec.
-  return;
 }
 
 function logError(err: unknown) {

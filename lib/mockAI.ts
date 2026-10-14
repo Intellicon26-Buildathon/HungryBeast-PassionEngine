@@ -133,7 +133,13 @@ export function generateManagerReply(
   turnSeed: number
 ): string {
   const quality = assessAnswer(studentAnswer, task);
-  const bank = ACKS[task.id]?.[quality] ?? ["Noted — let's keep going."];
+  const bank = ACKS[task.id]?.[quality] ?? [
+    quality === "strong"
+      ? `That gives us a workable direction for this ${scenario.role} task. What would you verify first before we act?`
+      : quality === "partial"
+      ? `Useful start. For this ${scenario.role} task, make your next action more specific: ${task.hint}`
+      : `I need a clearer response to this part of the work. ${task.hint}`,
+  ];
   let reply = pick(bank, turnSeed);
 
   // Add one theme-aware line if we detect a relevant angle (strong/partial only).
@@ -181,7 +187,7 @@ export function generateEvaluation(
   const totalWords = words(allText).length;
 
   const criteria: CriterionScore[] = scenario.rubric.map((c) => {
-    const relTaskIds = CRITERION_TASKS[c.id] ?? [];
+    const relTaskIds = c.taskIds ?? CRITERION_TASKS[c.id] ?? [];
     const relTasks = scenario.tasks.filter((t) => relTaskIds.includes(t.id));
 
     let coverage = 0;
@@ -211,29 +217,20 @@ export function generateEvaluation(
       ? `From your response: "${bestEvidence}"`
       : "You didn't address this directly in your answers.";
 
-    const feedback =
-      score >= 4
-        ? positiveFeedback(c.id)
-        : score >= 3
-        ? growthFeedback(c.id)
-        : gapFeedback(c.id);
+    const anchorIndex = score >= 4 ? 2 : score >= 3 ? 1 : 0;
+    const feedback = c.anchors[anchorIndex]?.replace(/^(?:0–1|2–3|4–5):\s*/, "") ??
+      "Use the case evidence to make the next action more specific.";
 
     return { id: c.id, label: c.label, score, maxScore: c.maxScore, evidence, feedback };
   });
 
-  const avgRatio =
-    criteria.reduce((s, c) => s + c.score / c.maxScore, 0) / criteria.length;
-
-  // Map each observed skill to the rubric criterion that best evidences it.
-  const SKILL_TO_CRITERION: Record<string, string> = {
-    problem_framing: "problem_framing",
-    analytical_thinking: "use_of_evidence",
-    user_empathy: "user_empathy",
-    communication: "communication",
-  };
-
   const observedSkills: ObservedSkill[] = scenario.skills.map((sk) => {
-    const critId = SKILL_TO_CRITERION[sk.id] ?? sk.id;
+    const critId = sk.criterionId ?? ({
+      problem_framing: "problem_framing",
+      analytical_thinking: "use_of_evidence",
+      user_empathy: "user_empathy",
+      communication: "communication",
+    }[sk.id] ?? sk.id);
     const match = criteria.find((c) => c.id === critId) ?? criteria[0];
     const level = levelFromScore(match.score, match.maxScore);
     return {
@@ -244,23 +241,36 @@ export function generateEvaluation(
     };
   });
 
-  const strengths = criteria
+  const rankedCriteria = [...criteria].sort(
+    (left, right) => right.score / right.maxScore - left.score / left.maxScore
+  );
+  const strengths = rankedCriteria
     .filter((c) => c.score >= 4)
-    .map((c) => `${c.label}: ${positiveFeedback(c.id)}`)
+    .map((c) => `${c.label}: ${c.feedback}`)
     .slice(0, 3);
   if (strengths.length === 0) {
-    strengths.push("You completed the full simulation and engaged with every task — that persistence counts.");
+    strengths.push("You completed the scenario and left evidence across the assessed work.");
   }
 
-  const improvements = criteria
+  const improvements = [...rankedCriteria]
+    .reverse()
     .filter((c) => c.score <= 3)
-    .map((c) => `${c.label}: ${gapFeedback(c.id)}`)
+    .map((c) => `${c.label}: ${c.feedback}`)
     .slice(0, 3);
   if (improvements.length === 0) {
-    improvements.push("Push for even more specificity — name exact numbers and name exact user segments.");
+    improvements.push("Try the same workflow with a new constraint and compare the evidence you gather.");
   }
 
-  const summary = buildSummary(avgRatio, totalWords);
+  const nextSteps = [...rankedCriteria]
+    .reverse()
+    .slice(0, 3)
+    .map((criterion) => {
+      const taskIds = scenario.rubric.find((item) => item.id === criterion.id)?.taskIds ??
+        CRITERION_TASKS[criterion.id] ?? [];
+      const task = scenario.tasks.find((item) => taskIds.includes(item.id));
+      return task ? `${task.title}: ${task.hint}` : `${criterion.label}: ${criterion.feedback}`;
+    });
+  const summary = buildSummary(careerTitle, totalWords, rankedCriteria);
 
   return {
     sessionId: session.id,
@@ -271,57 +281,22 @@ export function generateEvaluation(
     observedSkills,
     strengths,
     improvements,
-    nextSteps: [
-      "Practise breaking one broad problem into 3–4 smaller, answerable questions.",
-      "Next time, label each claim as evidence or assumption before you commit to it.",
-      "Try the Data Analyst simulation to strengthen how you reason with numbers.",
-    ],
+    nextSteps,
     limitations:
-      "This is feedback on one simulation, generated from a fixed rubric — not a measure of your overall ability or a judgement about whether this career is right for you.",
+      "This report reflects one fictional work scenario and a fixed, case-specific rubric. It is not a measure of your overall ability or a judgement about whether this career is right for you.",
     createdAt: Date.now(),
   };
 }
 
-function buildSummary(avgRatio: number, totalWords: number): string {
-  if (avgRatio >= 0.72) {
-    return "In this simulation you worked the problem like a product manager would — you slowed down, asked for evidence, and turned a vague retention drop into a focused, testable plan. Your thinking was structured and you were honest about uncertainty.";
-  }
-  if (avgRatio >= 0.5) {
-    return "In this simulation you showed solid product instincts. You engaged with each task and reached a reasonable recommendation. The main opportunity is specificity — tying your reasoning to concrete data and sharper user segments.";
-  }
-  if (totalWords < 60) {
-    return "In this simulation your answers were quite brief, so there's less evidence to reflect back. The flow is working — try it again and think out loud: the more of your reasoning you write, the more useful this feedback becomes.";
-  }
-  return "In this simulation you moved through the full problem and reached a recommendation. The biggest gains will come from framing the problem before solving it, and from grounding your ideas in specific evidence rather than general statements.";
-}
-
-function positiveFeedback(id: string): string {
-  const m: Record<string, string> = {
-    problem_framing: "you defined the problem before reaching for a solution.",
-    use_of_evidence: "you pointed at specific data and separated fact from assumption.",
-    user_empathy: "you reasoned about real user segments, not an average user.",
-    feasibility: "your proposed next step was small and genuinely testable.",
-    communication: "your explanation was structured and decision-ready.",
-  };
-  return m[id] ?? "clear, grounded thinking here.";
-}
-function growthFeedback(id: string): string {
-  const m: Record<string, string> = {
-    problem_framing: "you framed the problem but could sharpen what's known vs. unknown.",
-    use_of_evidence: "you named some evidence — be explicit about which single number would change your mind.",
-    user_empathy: "you mentioned users; name a specific segment and their likely experience.",
-    feasibility: "your step is reasonable but could be smaller and more measurable.",
-    communication: "clear enough — lead with the recommendation and trim the rest.",
-  };
-  return m[id] ?? "a solid attempt with room to go deeper.";
-}
-function gapFeedback(id: string): string {
-  const m: Record<string, string> = {
-    problem_framing: "try defining the problem and its unknowns before proposing anything.",
-    use_of_evidence: "name concrete data you'd look at, and flag your assumptions as assumptions.",
-    user_empathy: "bring the actual user in — which group is affected and how?",
-    feasibility: "propose one small, testable next step with a clear success signal.",
-    communication: "structure the answer: what's happening, what you'd do, and why.",
-  };
-  return m[id] ?? "add more detail and structure here.";
+function buildSummary(
+  careerTitle: string,
+  totalWords: number,
+  rankedCriteria: CriterionScore[]
+): string {
+  const strongest = rankedCriteria[0]?.label ?? "the work";
+  const nextFocus = rankedCriteria[rankedCriteria.length - 1]?.label ?? "your next step";
+  const detail = totalWords < 60
+    ? "Your answers were brief, so the report has less evidence to reflect."
+    : `The report reflects ${totalWords} words from your saved responses.`;
+  return `You completed a ${careerTitle} work simulation. ${strongest} was your strongest rubric area, while ${nextFocus} is a useful area to practise next. ${detail}`;
 }

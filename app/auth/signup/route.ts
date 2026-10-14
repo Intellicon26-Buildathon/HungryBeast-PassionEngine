@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const input = signUpSchema.parse(body);
 
-    const client = requireSupabaseRouteClient();
+    const client = await requireSupabaseRouteClient();
 
     // Attempt to create the auth user.
     const { data, error } = await client.auth.signUp({
