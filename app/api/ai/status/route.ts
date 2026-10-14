@@ -13,6 +13,10 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
-    status: { mode, model: aiConfig.model },
+    status: {
+      mode,
+      model: aiConfig.model,
+      ...(aiConfig.modelWarning ? { warning: aiConfig.modelWarning } : {}),
+    },
   });
 }

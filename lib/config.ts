@@ -74,6 +74,24 @@ export const publicEnv = publicEnvSchema.parse({
 });
 export const serverEnv = serverEnvSchema.parse(process.env);
 
+const DEFAULT_AI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL_ID = /^gemini-[a-z0-9][a-z0-9.-]*$/i;
+
+export function resolveAiModel(configuredModel: string | undefined): {
+  model: string;
+  warning?: string;
+} {
+  const model = configuredModel?.trim();
+  if (!model) return { model: DEFAULT_AI_MODEL };
+  if (!GEMINI_MODEL_ID.test(model)) {
+    return {
+      model: DEFAULT_AI_MODEL,
+      warning: `AI_MODEL must be a full Gemini model ID. Using ${DEFAULT_AI_MODEL}; update the Vercel AI_MODEL setting to remove this warning.`,
+    };
+  }
+  return { model };
+}
+
 // ---------------------------------------------------------------------------
 // Configuration flags (checked at the point of use, never trusted implicitly)
 // ---------------------------------------------------------------------------
@@ -112,10 +130,12 @@ export const appOrigin =
   'http://localhost:3000';
 
 /** Server-side AI gateway settings (never imported into the browser bundle). */
+const resolvedAiModel = resolveAiModel(serverEnv.AI_MODEL);
 export const aiConfig = {
   provider: serverEnv.AI_PROVIDER,
   apiKey: serverEnv.GEMINI_API_KEY,
-  model: serverEnv.AI_MODEL,
+  model: resolvedAiModel.model,
+  modelWarning: resolvedAiModel.warning,
   timeoutMs: serverEnv.AI_TIMEOUT_MS,
   maxOutputTokens: serverEnv.AI_MAX_OUTPUT_TOKENS,
   enabled: aiGatewayEnabled,
