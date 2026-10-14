@@ -1,8 +1,6 @@
 import type { Career, Scenario } from "./types";
 
-// ── Career catalogue ────────────────────────────────────────────────
-// Only Product Manager is fully functional for Gate 2 (available: true).
-// The rest are concept cards so the catalogue reads as a real product.
+// ── Playable career catalogue ───────────────────────────────────────
 
 export const CAREERS: Career[] = [
   {
