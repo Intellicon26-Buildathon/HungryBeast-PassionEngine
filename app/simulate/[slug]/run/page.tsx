@@ -304,7 +304,11 @@ export default function RunPage({ params }: { params: Promise<{ slug: string }> 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
+                      // Enter sends; Shift+Enter adds a new line. Skip while an IME is composing.
+                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        submit();
+                      }
                     }}
                     rows={3}
                     maxLength={3000}
@@ -324,10 +328,6 @@ export default function RunPage({ params }: { params: Promise<{ slug: string }> 
                     </div>
                   </div>
                 </div>
-                <p className="mt-1.5 text-center text-[0.66rem] text-work-muted/60">
-                  Press ⌘/Ctrl + Enter to send · This is practice — don&apos;t share
-                  sensitive personal info
-                </p>
               </div>
             </div>
           )}
